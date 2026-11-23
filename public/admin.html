@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Swoosh admin</title>
+<link rel="icon" href="/icon.svg">
+<link rel="stylesheet" href="/styles.css">
+<style>
+main{max-width:1000px;margin:0 auto;padding:24px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin:16px 0 28px}
+.stats div{padding:16px}
+.stats b{display:block;font-family:'Space Grotesk',sans-serif;font-size:28px}
+.req{padding:16px;margin-bottom:16px;display:flex;flex-direction:column;gap:12px}
+.imgs{display:flex;gap:10px;overflow-x:auto}
+.imgs figure{margin:0;text-align:center;font-size:12px;color:var(--muted)}
+.imgs img{height:220px;border-radius:12px;display:block;margin-bottom:4px}
+</style>
+</head>
+<body>
+<main>
+  <a class="logo" href="/"><img src="/icon.svg" width="28" height="28" alt="">Swoosh admin</a>
+  <form id="lf" style="display:flex;gap:10px;align-items:flex-end;margin-top:20px">
+    <div class="field" style="margin:0;flex:1"><label for="pw">Admin password</label><input id="pw" type="password" autocomplete="current-password"></div>
+    <button class="btn">Open</button>
+  </form>
+  <div id="out"></div>
+</main>
+<script>
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+let PW = sessionStorage.getItem('swpw') || '';
+async function api(path, opts = {}) {
+  const r = await fetch('/api/admin' + path, { method: opts.method || 'GET', headers: { 'x-admin-password': PW, 'Content-Type': 'application/json' }, body: opts.body ? JSON.stringify(opts.body) : undefined });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || 'Error');
+  return d;
+}
+// Images need the admin header, so load them as blobs.
+async function img(path, el) {
+  const r = await fetch('/api/admin' + path, { headers: { 'x-admin-password': PW } });
+  if (r.ok) el.src = URL.createObjectURL(await r.blob()); else el.alt = 'Not available';
+}
+async function load() {
+  const out = document.getElementById('out');
+  try {
+    const [s, pending, reports] = await Promise.all([api('/stats'), api('/pending'), api('/reports')]);
+    sessionStorage.setItem('swpw', PW);
+    out.innerHTML = `<div class="stats">${Object.entries({ 'All users': s.users, Verified: s.verified, Women: s.women, Men: s.men, Matches: s.matches, Waitlist: s.waitlist, 'Open reports': s.open_reports }).map(([k, v]) => `<div class="card"><b>${v}</b>${k}</div>`).join('')}</div>
+    <h2>Verification queue (${pending.length})</h2>
+    ${pending.length ? '' : '<p class="hint">Nobody waiting.</p>'}
+    ${pending.map((u) => `<div class="card req" data-uid="${u.id}">
+      <div><strong>${esc(u.name)}, ${u.age}</strong> · ${esc(u.gender)} · ${esc(u.city)} · ${esc(u.phone)} · ${esc(u.id_type)}</div>
+      <div class="imgs"><figure><img data-src="/verification/${u.id}/id" alt="ID">ID</figure><figure><img data-src="/verification/${u.id}/selfie" alt="Selfie">Selfie</figure>
+      ${u.photos.map((p) => `<figure><img data-src="/photo/${p.id}" alt="Profile photo">Profile</figure>`).join('')}</div>
+      <p class="hint" style="margin:0">Check: selfie matches ID and profile photos; ID name and date of birth look consistent with the profile; age 18+.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" data-ok="${u.id}">Approve</button><button class="btn ghost" data-no="${u.id}">Reject</button></div>
+    </div>`).join('')}
+    <h2 style="margin-top:32px">Reports (${reports.length})</h2>
+    ${reports.map((r) => `<div class="card req"><div><strong>${esc(r.reported_name)}</strong> (${esc(r.reported_phone)}) — reported by user #${r.reporter}</div><div>${esc(r.reason)}</div>
+      <div style="display:flex;gap:10px"><button class="btn danger" data-ban="${r.reported}">Ban person + ID</button><button class="btn ghost" data-res="${r.id}">Dismiss</button></div></div>`).join('') || '<p class="hint">No open reports.</p>'}`;
+    out.querySelectorAll('img[data-src]').forEach((i) => img(i.dataset.src, i));
+    out.querySelectorAll('[data-ok]').forEach((b) => b.onclick = async () => { await api('/decide/' + b.dataset.ok, { method: 'POST', body: { approve: true } }); load(); });
+    out.querySelectorAll('[data-no]').forEach((b) => b.onclick = async () => { const reason = prompt('Reason shown to the user (e.g. selfie unclear)'); if (reason === null) return; await api('/decide/' + b.dataset.no, { method: 'POST', body: { approve: false, reason } }); load(); });
+    out.querySelectorAll('[data-ban]').forEach((b) => b.onclick = async () => { if (confirm('Ban this person and their ID permanently?')) { await api('/ban/' + b.dataset.ban, { method: 'POST' }); load(); } });
+    out.querySelectorAll('[data-res]').forEach((b) => b.onclick = async () => { await api('/reports/' + b.dataset.res + '/resolve', { method: 'POST' }); load(); });
+  } catch (e) { out.innerHTML = `<p class="err">${esc(e.message)}</p>`; }
+}
+document.getElementById('lf').onsubmit = (e) => { e.preventDefault(); PW = document.getElementById('pw').value; load(); };
+if (PW) load();
+</script>
+</body>
+</html>
