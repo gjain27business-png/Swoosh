@@ -13,16 +13,20 @@ const SECRET = process.env.SESSION_SECRET || 'dev-secret-change-me';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin';
 const BRAND = process.env.BRAND_NAME || 'Swoosh';
 
+const SCHEMA = (process.env.DB_SCHEMA || '').replace(/[^a-z_]/g, '');
 const pool = new Pool({
+  ...(SCHEMA ? { options: `-c search_path=${SCHEMA}` } : {}),
   connectionString: process.env.DATABASE_URL || 'postgres://swoosh:swoosh@localhost:5432/swoosh',
-  ssl: process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('localhost') ? { rejectUnauthorized: false } : false
+  ssl: process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('localhost') && process.env.DATABASE_URL.includes('.render.com') ? { rejectUnauthorized: false } : false
 });
+// DB_SCHEMA (optional) keeps Swoosh tables in their own schema so the app can share a database safely.
 const q = (text, params) => pool.query(text, params);
 
 const MODES = ['serious', 'marriage', 'fling', 'vibe'];
 const GENDERS = ['man', 'woman', 'nonbinary'];
 
 async function migrate() {
+  if (SCHEMA) await q(`CREATE SCHEMA IF NOT EXISTS ${SCHEMA}`);
   await q(`
   CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
