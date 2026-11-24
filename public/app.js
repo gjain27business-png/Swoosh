@@ -64,6 +64,7 @@ function render(html, dark = false) {
 // ---------- routing ----------
 async function route() {
   clearInterval(pollTimer);
+  document.querySelectorAll('.celebrate,.toast').forEach((e) => e.remove());
   const [view, arg] = location.hash.replace(/^#/, '').split('/');
   if (view === 'signup' || view === 'login') return authView(view);
   try { ME = await api('/me'); } catch (e) { return authView('signup'); }
@@ -80,16 +81,27 @@ window.addEventListener('hashchange', route);
 // ---------- auth ----------
 function authView(mode) {
   const signup = mode === 'signup';
-  render(`<main class="screen" style="padding-top:48px">
-    <a class="logo" href="/"><img src="/icon.svg" width="32" height="32" alt="">Swoosh</a>
-    <h1 style="font-size:40px;line-height:1.05;margin:40px 0 10px">${signup ? 'Talk first.<br>Reveal when you\'re ready.' : 'Welcome back'}</h1>
-    <p class="hint" style="font-size:15px;margin:0 0 28px">${signup ? 'Every person here is ID-verified. Free for women.' : 'Log in with your mobile number.'}</p>
+  render(`<main class="screen fade-in" style="padding-top:24px">
+    <div class="authhero" aria-hidden="true">
+      <div class="bl" style="width:220px;height:220px;background:#C23B2F;opacity:.55;left:-40px;top:-60px"></div>
+      <div class="bl" style="width:240px;height:240px;background:#6C5CE7;opacity:.55;right:-60px;top:20px"></div>
+      <svg viewBox="0 0 390 220" width="100%" height="100%" style="position:relative">
+        <defs><filter id="ab"><feGaussianBlur stdDeviation="7"/></filter></defs>
+        <g transform="translate(110 70)"><circle r="46" fill="#5B5266"/><g filter="url(#ab)"><circle cy="-6" r="20" fill="#C9A99A"/><path d="M-34 40 C-30 12, 30 12, 34 40Z" fill="#2E5A88"/></g></g>
+        <g transform="translate(280 120)"><circle r="46" fill="#E9D8C8"/><circle cy="-6" r="20" fill="#D9B5A2"/><path d="M-18 -10 C-18 -34, 18 -34, 18 -10 C15 -20, 6 -24, 0 -24 C-6 -24, -15 -20, -18 -10Z" fill="#2B1E1E"/><circle cx="-7" cy="-4" r="2" fill="#2B1E1E"/><circle cx="7" cy="-4" r="2" fill="#2B1E1E"/><path d="M-6 5 q6 5 12 0" fill="none" stroke="#2B1E1E" stroke-width="2" stroke-linecap="round"/><path d="M-34 40 C-30 12, 30 12, 34 40Z" fill="#C23B2F"/></g>
+        <path d="M150 90 C190 70, 220 140, 240 118" fill="none" stroke="#F6F5F2" stroke-width="2" stroke-dasharray="4 6" stroke-linecap="round"/>
+        <g transform="translate(196 104)"><rect x="-38" y="-14" width="76" height="28" rx="14" fill="#F6F5F2"/><text x="0" y="5" text-anchor="middle" font-family="Inter,sans-serif" font-size="12" font-weight="600" fill="#17161C">Verified</text></g>
+      </svg>
+    </div>
+    <a class="logo" href="/" style="margin-top:24px"><img src="/icon.svg" width="32" height="32" alt="">Swoosh</a>
+    <h1 style="font-size:38px;line-height:1.05;margin:18px 0 10px">${signup ? 'Talk first.<br>Reveal when you\'re ready.' : 'Welcome back'}</h1>
+    <p class="hint" style="font-size:15px;margin:0 0 24px">${signup ? 'Every person here is ID-verified. Free for women. Live in Bangalore &amp; Delhi NCR.' : 'Log in with your mobile number.'}</p>
     <form id="f">
-      <div class="field"><label for="phone">Mobile number</label><input id="phone" type="tel" inputmode="numeric" autocomplete="tel" required></div>
+      <div class="field"><label for="phone">Mobile number</label><input id="phone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="98xxxxxx10" required></div>
       <div class="field"><label for="pw">Password</label><input id="pw" type="password" autocomplete="${signup ? 'new-password' : 'current-password'}" minlength="8" required></div>
-      ${signup ? `<label style="display:flex;gap:10px;align-items:flex-start;font-size:14px;margin-bottom:14px"><input id="agree" type="checkbox" style="width:20px;height:20px;margin-top:1px" required>I am 18 or older and agree to the <a href="/terms" target="_blank">Terms</a> and <a href="/privacy" target="_blank">Privacy Policy</a>.</label>` : ''}
+      ${signup ? `<label style="display:flex;gap:10px;align-items:flex-start;font-size:14px;margin-bottom:14px"><input id="agree" type="checkbox" style="width:20px;height:20px;margin-top:1px;flex:none" required><span>I am 18 or older and agree to the <a href="/terms" target="_blank">Terms</a> and <a href="/privacy" target="_blank">Privacy Policy</a>.</span></label>` : ''}
       <div class="err" id="err" role="alert"></div>
-      <button class="btn block" type="submit">${signup ? 'Create account' : 'Log in'}</button>
+      <button class="btn block" type="submit" style="min-height:54px">${signup ? 'Create account' : 'Log in'}</button>
     </form>
     <p style="text-align:center;margin-top:20px;font-size:15px">${signup ? 'Already on Swoosh? <a href="#login">Log in</a>' : 'New here? <a href="#signup">Create an account</a>'}</p>
   </main>`);
@@ -114,7 +126,10 @@ function profileView(onboarding) {
   }).join('');
   render(`<main class="screen">
     <div class="top"><h1>${onboarding ? 'Your profile' : 'Edit profile'}</h1>${onboarding ? '' : '<button class="btn ghost" id="logout" style="min-height:40px">Log out</button>'}</div>
-    ${onboarding ? '<p class="hint" style="margin-top:-8px">Step 1 of 2 — next you\'ll verify your ID.</p>' : ''}
+    ${(() => { const parts = [m.photos.length, m.name, m.dob, m.city, m.gender, m.prompt_a, m.bio, (m.tags || []).length]; const pct = Math.round(parts.filter(Boolean).length / parts.length * 100);
+      return `<div class="profilehead">${m.photos[0] ? `<img class="av" style="width:56px;height:56px" src="/api/photo/${m.photos[0].id}" alt="">` : '<span class="av" style="width:56px;height:56px"></span>'}
+      <div style="flex:1"><div style="font-weight:600">${esc(m.name || 'Your profile')} ${m.status === 'verified' ? '<span class="vbadge">Verified</span>' : ''}</div>
+      <div class="hint">${onboarding ? 'Step 1 of 2 — next you\'ll verify your ID' : `Profile ${pct}% complete`}</div><div class="bar"><i style="width:${pct}%"></i></div></div></div>`; })()}
     <form id="pf">
       <div class="field"><span style="font-size:13px;font-weight:500">Photos (1–4). They stay blurred until you reveal them in a chat.</span><div class="photos">${photoSlots}</div></div>
       <div class="field"><label for="name">First name</label><input id="name" value="${esc(m.name)}" maxlength="40" required></div>
@@ -174,8 +189,8 @@ function profileView(onboarding) {
 function verifyView() {
   const s = ME.status;
   if (s === 'pending') {
-    return render(`<main class="screen" style="text-align:center;padding-top:80px">
-      <img src="/icon.svg" width="64" height="64" alt="">
+    return render(`<main class="screen fade-in" style="text-align:center;padding-top:64px">
+      <svg width="140" height="120" viewBox="0 0 140 120" aria-hidden="true"><circle cx="70" cy="60" r="54" fill="#E6F4EC"/><path d="M70 22l30 12v24c0 18-12 30-30 36-18-6-30-18-30-36V34z" fill="#fff" stroke="#17161C" stroke-width="3"/><circle cx="70" cy="56" r="10" fill="#C9A99A"/><path d="M54 80c4-8 10-12 16-12s12 4 16 12" fill="none" stroke="#17161C" stroke-width="3" stroke-linecap="round"/><circle cx="104" cy="88" r="14" fill="#1E9E5A"/><path d="M98 88l4 4 8-8" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <h1 style="font-size:30px;margin:24px 0 10px">You're in the queue</h1>
       <p class="hint" style="font-size:15px">We're checking your ID and selfie by hand. This usually takes a few hours. Once approved, we delete both and keep only a "verified" tick.</p>
       <div style="display:flex;flex-direction:column;gap:10px;margin-top:28px">
@@ -210,50 +225,81 @@ function verifyView() {
 }
 
 // ---------- picks ----------
+const MODE_COLORS = { serious: ['#FBE4E0', '#9C2A20'], marriage: ['#FBF0D9', '#7A4F00'], fling: ['#EDEAFF', '#4B3CC4'], vibe: ['#DFF3EF', '#0E6B5C'] };
+const modeChip = (m, href) => `<${href ? `a href="${href}"` : 'span'} class="modechip" style="background:${MODE_COLORS[m][0]};color:${MODE_COLORS[m][1]}">${esc(MODES[m])}</${href ? 'a' : 'span'}>`;
+const moonArt = `<svg width="120" height="96" viewBox="0 0 120 96" aria-hidden="true"><circle cx="60" cy="48" r="36" fill="#EDEAFF"/><path d="M72 22a28 28 0 1 0 14 40 22 22 0 0 1-14-40z" fill="#6C5CE7"/><circle cx="22" cy="20" r="3" fill="#C9C2FF"/><circle cx="100" cy="30" r="2.5" fill="#C9C2FF"/><circle cx="96" cy="78" r="3" fill="#F4A99C"/><circle cx="16" cy="70" r="2" fill="#F4A99C"/></svg>`;
+function whyMatch(p) {
+  const mine = (ME.tags || []).map((t) => t.toLowerCase());
+  const shared = (p.tags || []).filter((t) => mine.includes(t.toLowerCase())).slice(0, 2).map((t) => `You both: ${t}`);
+  const out = [...shared];
+  if (p.mode === ME.mode) out.push(MODES[p.mode]);
+  if (p.city && p.city === ME.city) out.push(`Also in ${p.city}`);
+  return out.slice(0, 3);
+}
+function celebrate(other, matchId) {
+  const ph = other.photos[0] ? `<img src="/api/photo/${other.photos[0].id}" alt="">` : '';
+  const mine = ME.photos[0] ? `<img src="/api/photo/${ME.photos[0].id}" alt="">` : '';
+  const el = document.createElement('div');
+  el.className = 'celebrate'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', "It's mutual");
+  el.innerHTML = `<div class="pair"><div>${mine}</div><div>${ph}</div></div>
+    <h2 style="margin:6px 0 0;font-size:36px">It's mutual.</h2>
+    <p style="margin:0;color:#C9C5D2;max-width:300px;line-height:1.5">You and ${esc(other.name)} liked each other. Your chat opens in dark mode — photos stay blurred until you both reveal.</p>
+    <a class="btn" href="#chat/${matchId}" style="background:#fff;color:#121117;border-color:#fff;min-width:240px">Open dark-mode chat</a>
+    <button class="btn ghost" style="color:#fff;border-color:#3A3645;min-width:240px" id="keep">Keep looking</button>`;
+  document.body.appendChild(el);
+  el.querySelector('a').onclick = () => el.remove();
+  el.querySelector('#keep').onclick = () => el.remove();
+}
 async function picksView() {
-  render(`<main class="screen"><div class="top"><h1>Today's picks</h1><span class="chip">${esc(MODES[ME.mode])}</span></div><p class="hint">Loading…</p></main>${navbar('picks')}`);
+  if (!LIVE.includes(ME.city)) {
+    return render(`<main class="screen fade-in"><div class="top"><h1>Today's picks</h1>${modeChip(ME.mode, '#profile')}</div>
+      <div class="empty">${moonArt}<h2>We're not in ${esc(ME.city)} yet</h2>
+      <p class="hint">Swoosh is live in ${esc(LIVE.join(' and '))} right now. Your verified profile is saved, and you'll get picks the day your city opens.</p>
+      <a class="btn ghost" href="#profile" style="margin-top:10px">Change city</a></div></main>${navbar('picks')}`);
+  }
+  render(`<main class="screen"><div class="top"><h1>Today's picks</h1>${modeChip(ME.mode, '#profile')}</div><p class="hint">Finding your people…</p></main>${navbar('picks')}`);
   let picks = [];
   try { picks = await api('/picks'); } catch (x) { toast(x.message); }
   let i = 0;
   const show = () => {
     const p = picks[i];
-    const head = `<div class="top"><h1>Today's picks</h1><a class="chip" href="#profile" style="text-decoration:none">${esc(MODES[ME.mode])}</a></div>
-      <p class="hint" style="margin:-8px 0 14px">Only people who fit your filters — and whose filters you fit.</p>`;
-    if (!p && !LIVE.includes(ME.city)) {
-      return render(`<main class="screen">${head}<div class="card" style="padding:28px;text-align:center">
-        <h2 style="margin:0 0 8px">We're not in ${esc(ME.city)} yet</h2>
-        <p class="hint">Swoosh is live in ${esc(LIVE.join(' and '))} right now. Your verified profile is saved, and we'll open your city as soon as enough people join there.</p>
-        <a class="btn ghost" href="#profile" style="margin-top:10px">Change city</a></div></main>${navbar('picks')}`);
-    }
+    const head = `<div class="top"><h1>Today's picks</h1>${modeChip(ME.mode, '#profile')}</div>`;
     if (!p) {
-      return render(`<main class="screen">${head}<div class="card" style="padding:28px;text-align:center">
-        <h2 style="margin:0 0 8px">That's everyone for now</h2>
-        <p class="hint">Swoosh shows a few verified people a day instead of endless swiping. Check back tomorrow, or widen your age range or cities.</p>
+      return render(`<main class="screen fade-in">${head}<div class="empty">${moonArt}
+        <h2>That's everyone for today</h2>
+        <p class="hint">Swoosh shows a handful of verified, compatible people a day instead of endless swiping. New picks tomorrow — or widen your age range to see more now.</p>
         <a class="btn ghost" href="#profile" style="margin-top:10px">Adjust filters</a></div></main>${navbar('picks')}`);
     }
+    const why = whyMatch(p);
     render(`<main class="screen">${head}
-      <article class="card pick">
-        <div class="ph">${p.photos[0] ? `<img src="/api/photo/${p.photos[0].id}" alt="Blurred photo of ${esc(p.name)}">` : ''}<div class="lockbadge">${icon.lock} Photos unlock in chat</div></div>
+      <div class="dots" aria-label="Pick ${i + 1} of ${picks.length}">${picks.map((_, k) => `<i class="${k === i ? 'on' : ''}"></i>`).join('')}</div>
+      <article class="card pick fade-in" id="card">
+        <div class="ph">${p.photos[0] ? `<img src="/api/photo/${p.photos[0].id}" alt="Blurred photo of ${esc(p.name)}">` : ''}
+          <div class="lockbadge" style="z-index:1">${icon.lock} Photos unlock in chat</div>
+          <div class="over"><h2>${esc(p.name)}, ${p.age} <span class="vbadge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Verified</span></h2>
+            <div style="font-size:14px;opacity:.9;margin-top:4px">${esc(p.city)}</div>
+            ${why.length ? `<div class="why">${why.map((w) => `<span>${esc(w)}</span>`).join('')}</div>` : ''}</div>
+        </div>
         <div class="body">
-          <div style="display:flex;align-items:center;gap:8px"><h2 style="margin:0;font-size:24px">${esc(p.name)}, ${p.age}</h2><span class="chip" style="background:#E6EEFA;color:#1E4E9A">Verified</span></div>
-          <div class="hint" style="font-size:14px">${esc(p.city)} · ${esc(MODES[p.mode])}</div>
+          ${p.prompt_a ? `<div style="padding:14px 16px;border-radius:16px;background:${MODE_COLORS[p.mode][0]}"><div style="font-size:12px;font-weight:600;color:${MODE_COLORS[p.mode][1]}">${esc(p.prompt_q)}</div><div style="margin-top:6px;font-size:17px;line-height:1.4;font-family:'Space Grotesk',sans-serif;font-weight:500">${esc(p.prompt_a)}</div></div>` : ''}
+          ${p.bio ? `<p style="margin:0;font-size:15px;line-height:1.55">${esc(p.bio)}</p>` : ''}
           ${p.tags.length ? `<div class="chips">${p.tags.map((t) => `<span class="chip">${esc(t)}</span>`).join('')}</div>` : ''}
-          ${p.prompt_a ? `<div style="padding:12px 14px;border-radius:14px;background:var(--bg)"><div style="font-size:12px;font-weight:600;color:var(--muted)">${esc(p.prompt_q)}</div><div style="margin-top:4px;font-size:15px">${esc(p.prompt_a)}</div></div>` : ''}
-          ${p.bio ? `<p style="margin:0;font-size:15px;line-height:1.5">${esc(p.bio)}</p>` : ''}
         </div>
       </article>
       <div class="actions">
-        <button class="round" id="pass" aria-label="Pass">${icon.x}</button>
+        <button class="round" id="pass" aria-label="Pass on ${esc(p.name)}">${icon.x}</button>
         <button class="btn" id="like" style="flex:1;min-height:60px;border-radius:30px">${icon.moon} Like — chat in dark mode</button>
       </div>
-      <p class="hint" style="text-align:center">If they like you back, a dark-mode chat opens.</p>
+      <p class="hint" style="text-align:center">If ${esc(p.name)} likes you back, a dark-mode chat opens.</p>
     </main>${navbar('picks')}`);
+    const card = document.getElementById('card');
     const act = async (kind) => {
+      card.classList.add(kind === 'like' ? 'out-right' : 'out-left');
       try {
         const r = await api('/like/' + p.id, { method: 'POST', body: { kind } });
-        if (r.matched) { toast("It's mutual — your dark-mode chat is open"); location.hash = 'chat/' + r.match_id; return; }
+        if (r.matched) celebrate(p, r.match_id);
       } catch (x) { toast(x.message); }
-      i++; show();
+      setTimeout(() => { i++; show(); }, 280);
     };
     document.getElementById('pass').onclick = () => act('pass');
     document.getElementById('like').onclick = () => act('like');
@@ -265,13 +311,14 @@ async function picksView() {
 async function chatsView() {
   render(`<main class="screen"><div class="top"><h1>Chats</h1></div><p class="hint">Loading…</p></main>${navbar('chats')}`);
   const list = await api('/matches').catch(() => []);
-  render(`<main class="screen"><div class="top"><h1>Chats</h1><span class="hint">${list.length}/5 active</span></div>
-    ${list.length ? `<div class="card list">${list.map((m) => `<a href="#chat/${m.id}">
-      ${m.other.photos[0] ? `<img class="av" src="/api/photo/${m.other.photos[0].id}" alt="">` : '<span class="av"></span>'}
-      <div style="flex:1;min-width:0"><div style="font-weight:600">${esc(m.other.name)}, ${m.other.age}</div>
+  render(`<main class="screen fade-in"><div class="top"><h1>Chats</h1><span class="chip">${list.length}/5 active</span></div>
+    ${list.length ? `<div class="card list" style="overflow:hidden">${list.map((m) => `<a href="#chat/${m.id}">
+      <span class="ring" style="--p:${(m.level + 1) * 25}%">${m.other.photos[0] ? `<img class="av" src="/api/photo/${m.other.photos[0].id}" alt="">` : '<span class="av"></span>'}</span>
+      <div style="flex:1;min-width:0"><div style="font-weight:600;display:flex;align-items:center;gap:8px">${esc(m.other.name)}, ${m.other.age}${m.pending_by && m.pending_by !== ME.id ? '<span style="width:8px;height:8px;border-radius:4px;background:var(--accent)" aria-label="Reveal request waiting"></span>' : ''}</div>
       <div class="hint" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(m.last || '')}</div></div>
-      <span class="chip">${esc(m.levels[m.level])}</span></a>`).join('')}</div>`
-    : '<div class="card" style="padding:24px"><p class="hint" style="margin:0">No chats yet. When someone you like likes you back, your dark-mode chat appears here.</p></div>'}
+      <span class="chip" style="background:#EDEAFF;color:#4B3CC4">${esc(m.levels[m.level])}</span></a>`).join('')}</div>
+      <p class="hint" style="margin-top:14px">The ring around each photo shows how far you've revealed.</p>`
+    : `<div class="empty">${moonArt}<h2>No chats yet</h2><p class="hint">When someone you like likes you back, your dark-mode chat appears here.</p><a class="btn ghost" href="#picks" style="margin-top:10px">See today's picks</a></div>`}
   </main>${navbar('chats')}`);
 }
 
