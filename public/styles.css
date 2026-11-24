@@ -1,26 +1,35 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap');
-:root{--bg:#F6F5F2;--ink:#17161C;--muted:#55525C;--line:#E4E1DB;--card:#FFFFFF;--soft:#F1EFEA;--accent:#C23B2F;--night:#121117;--night2:#1C1A23;--night3:#26242E;--nline:#3A3645;--violet:#6C5CE7;--lilac:#C9C2FF;--ok:#1E7A3C}
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&display=swap');
+:root{
+  --bg:#FBF7F2;--ink:#16121D;--muted:#5D5767;--line:#E9E2D9;--card:#FFFFFF;--soft:#F3EDE5;
+  --accent:#D63B30;--coral:#FF6A5C;--violet:#6A4DF4;--lilac:#CDBFFF;--gold:#F2B33D;--ok:#1E7A3C;
+  --night:#110E18;--night2:#1B1725;--night3:#262130;--nline:#3B3449;
+  --steady-bg:#FFE4E0;--steady:#A8231B;--forever-bg:#FFF0D3;--forever:#7D5000;--dark-bg:#ECE7FF;--dark:#4630C8;
+}
 *{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
-h1,h2,h3,.display{font-family:'Space Grotesk',sans-serif;letter-spacing:-.02em}
+h1,h2,h3,.display{font-family:'Bricolage Grotesque',Inter,sans-serif;letter-spacing:-.03em;font-weight:800}
 a{color:inherit}
 button,input,select,textarea{font:inherit}
+:focus-visible{outline:3px solid var(--violet);outline-offset:2px}
+img{-webkit-user-drag:none;-webkit-touch-callout:none;user-select:none}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 20px;border-radius:14px;border:1px solid var(--ink);background:var(--ink);color:#fff;font-weight:600;cursor:pointer;text-decoration:none}
-.btn.ghost{background:transparent;color:var(--ink);border-color:#D6D2CA}
+.btn.ghost{background:transparent;color:var(--ink);border-color:#D8D0C5}
 .btn.danger{background:var(--accent);border-color:var(--accent)}
 .btn.block{width:100%}
 .btn:disabled{opacity:.5;cursor:default}
 .field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
-.field label{font-size:13px;font-weight:500}
-.field input,.field select,.field textarea{min-height:48px;padding:10px 14px;border-radius:12px;border:1px solid #D6D2CA;background:#fff;color:var(--ink);font-size:15px}
+.field label,.flabel{font-size:13px;font-weight:600}
+.field input,.field select,.field textarea{min-height:48px;padding:10px 14px;border-radius:12px;border:1px solid #D8D0C5;background:#fff;color:var(--ink);font-size:16px}
 .field textarea{min-height:80px;resize:vertical}
 .hint{font-size:13px;color:var(--muted);line-height:1.45}
 .err{color:var(--accent);font-size:14px;min-height:20px;margin:6px 0}
-.card{background:var(--card);border:1px solid var(--line);border-radius:20px}
-.chip{display:inline-flex;align-items:center;padding:6px 12px;border-radius:999px;background:var(--soft);font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:22px}
+.chip{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:999px;background:var(--soft);font-size:13px}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
-.pill{min-height:40px;padding:0 16px;border-radius:999px;border:1px solid #D6D2CA;background:#fff;color:var(--ink);font-weight:500;cursor:pointer}
+.pill{min-height:42px;padding:0 16px;border-radius:999px;border:1px solid #D8D0C5;background:#fff;color:var(--ink);font-weight:500;cursor:pointer}
 .pill[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
-.note{display:flex;gap:10px;padding:14px;border-radius:14px;background:#EFEDE8;font-size:13px;line-height:1.45;color:#3B3842}
-.logo{display:flex;align-items:center;gap:10px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:24px;letter-spacing:-.5px;text-decoration:none}
-.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.note{display:flex;gap:10px;padding:14px;border-radius:14px;background:#F0EAE1;font-size:13px;line-height:1.45;color:#3B3842}
+.logo{display:inline-flex;align-items:center;gap:9px;font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:24px;letter-spacing:.02em;text-decoration:none}
+.logo svg{flex:none}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}

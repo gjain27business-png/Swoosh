@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>Swoosh admin</title>
+<title>PAUSE admin</title>
 <link rel="icon" href="/icon.svg">
 <link rel="stylesheet" href="/styles.css">
 <style>
@@ -20,7 +20,7 @@ main{max-width:1000px;margin:0 auto;padding:24px}
 </head>
 <body>
 <main>
-  <a class="logo" href="/"><img src="/icon.svg" width="28" height="28" alt="">Swoosh admin</a>
+  <a class="logo" href="/"><img src="/icon.svg" width="28" height="28" alt="">PAUSE admin</a>
   <form id="lf" style="display:flex;gap:10px;align-items:flex-end;margin-top:20px">
     <div class="field" style="margin:0;flex:1"><label for="pw">Admin password</label><input id="pw" type="password" autocomplete="current-password"></div>
     <button class="btn">Open</button>
@@ -29,7 +29,7 @@ main{max-width:1000px;margin:0 auto;padding:24px}
 </main>
 <script>
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-let PW = sessionStorage.getItem('swpw') || '';
+let PW = sessionStorage.getItem('pzpw') || '';
 async function api(path, opts = {}) {
   const r = await fetch('/api/admin' + path, { method: opts.method || 'GET', headers: { 'x-admin-password': PW, 'Content-Type': 'application/json' }, body: opts.body ? JSON.stringify(opts.body) : undefined });
   const d = await r.json().catch(() => ({}));
@@ -44,25 +44,33 @@ async function img(path, el) {
 async function load() {
   const out = document.getElementById('out');
   try {
-    const [s, pending, reports] = await Promise.all([api('/stats'), api('/pending'), api('/reports')]);
-    sessionStorage.setItem('swpw', PW);
-    out.innerHTML = `<div class="stats">${Object.entries({ 'All users': s.users, Verified: s.verified, Women: s.women, Men: s.men, Matches: s.matches, Waitlist: s.waitlist, 'Open reports': s.open_reports }).map(([k, v]) => `<div class="card"><b>${v}</b>${k}</div>`).join('')}</div>
+    const [s, pending, reports, flagged, tickets] = await Promise.all([api('/stats'), api('/pending'), api('/reports'), api('/flagged'), api('/tickets')]);
+    sessionStorage.setItem('pzpw', PW);
+    out.innerHTML = `<div class="stats">${Object.entries({ 'All users': s.users, Verified: s.verified, Women: s.women, Men: s.men, 'Steady 💞': s.steady, 'Forever 💍': s.forever, 'After Dark 🌙': s.afterdark, 'Destiny on': s.destiny_on, 'Open chats': s.active_chats, 'Scam flags': s.scam_flags, Waitlist: s.waitlist, 'Open reports': s.open_reports, 'Help tickets': s.open_tickets }).map(([k, v]) => `<div class="card"><b>${v}</b>${k}</div>`).join('')}</div>
     <h2>Verification queue (${pending.length})</h2>
     ${pending.length ? '' : '<p class="hint">Nobody waiting.</p>'}
     ${pending.map((u) => `<div class="card req" data-uid="${u.id}">
-      <div><strong>${esc(u.name)}, ${u.age}</strong> · ${esc(u.gender)} · ${esc(u.city)} · ${esc(u.phone)} · ${esc(u.id_type)}</div>
+      <div><strong>${esc(u.name)}, ${u.age}</strong> · ${esc(u.gender)} · ${esc(u.city)} · ${esc(u.mode)} · ${esc(u.phone)} · ${esc(u.id_type)}</div>
       <div class="imgs"><figure><img data-src="/verification/${u.id}/id" alt="ID">ID</figure><figure><img data-src="/verification/${u.id}/selfie" alt="Selfie">Selfie</figure>
       ${u.photos.map((p) => `<figure><img data-src="/photo/${p.id}" alt="Profile photo">Profile</figure>`).join('')}</div>
       <p class="hint" style="margin:0">Check: selfie matches ID and profile photos; ID name and date of birth look consistent with the profile; age 18+.</p>
       <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" data-ok="${u.id}">Approve</button><button class="btn ghost" data-no="${u.id}">Reject</button></div>
     </div>`).join('')}
     <h2 style="margin-top:32px">Reports (${reports.length})</h2>
-    ${reports.map((r) => `<div class="card req"><div><strong>${esc(r.reported_name)}</strong> (${esc(r.reported_phone)}) — reported by user #${r.reporter}</div><div>${esc(r.reason)}</div>
-      <div style="display:flex;gap:10px"><button class="btn danger" data-ban="${r.reported}">Ban person + ID</button><button class="btn ghost" data-res="${r.id}">Dismiss</button></div></div>`).join('') || '<p class="hint">No open reports.</p>'}`;
+    ${reports.map((r) => `<div class="card req"><div><strong>${esc(r.reported_name)}</strong> (${esc(r.reported_phone)}) — reported by user #${r.reporter} · ${r.flags} scam flags</div><div>${esc(r.reason)}</div>
+      <div style="display:flex;gap:10px"><button class="btn danger" data-ban="${r.reported}">Ban person + ID</button><button class="btn ghost" data-res="${r.id}">Dismiss</button></div></div>`).join('') || '<p class="hint">No open reports.</p>'}
+    <h2 style="margin-top:32px">Scam flags (${flagged.length})</h2>
+    <p class="hint">People whose messages were flagged for money, OTP, crypto or links. Flags warn the receiver; review before banning.</p>
+    ${flagged.map((f) => `<div class="card req"><div><strong>${esc(f.name)}</strong> (${esc(f.phone)}) — ${f.flags} flagged messages: ${esc((f.kinds || []).join(', '))}</div>
+      <div><button class="btn danger" data-ban="${f.id}">Ban person + ID</button></div></div>`).join('') || '<p class="hint">Nothing flagged.</p>'}
+    <h2 style="margin-top:32px">Help tickets (${tickets.length})</h2>
+    ${tickets.map((t) => `<div class="card req"><div><strong>${esc(t.name || 'Visitor')}</strong> · ${esc(t.phone || t.contact)} · ${new Date(t.created_at).toLocaleString('en-IN')}</div><div>${esc(t.message)}</div>
+      <div><button class="btn ghost" data-tk="${t.id}">Mark resolved</button></div></div>`).join('') || '<p class="hint">No open tickets.</p>'}`;
     out.querySelectorAll('img[data-src]').forEach((i) => img(i.dataset.src, i));
     out.querySelectorAll('[data-ok]').forEach((b) => b.onclick = async () => { await api('/decide/' + b.dataset.ok, { method: 'POST', body: { approve: true } }); load(); });
     out.querySelectorAll('[data-no]').forEach((b) => b.onclick = async () => { const reason = prompt('Reason shown to the user (e.g. selfie unclear)'); if (reason === null) return; await api('/decide/' + b.dataset.no, { method: 'POST', body: { approve: false, reason } }); load(); });
     out.querySelectorAll('[data-ban]').forEach((b) => b.onclick = async () => { if (confirm('Ban this person and their ID permanently?')) { await api('/ban/' + b.dataset.ban, { method: 'POST' }); load(); } });
+    out.querySelectorAll('[data-tk]').forEach((b) => b.onclick = async () => { await api('/tickets/' + b.dataset.tk + '/resolve', { method: 'POST' }); load(); });
     out.querySelectorAll('[data-res]').forEach((b) => b.onclick = async () => { await api('/reports/' + b.dataset.res + '/resolve', { method: 'POST' }); load(); });
   } catch (e) { out.innerHTML = `<p class="err">${esc(e.message)}</p>`; }
 }
