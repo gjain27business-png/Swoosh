@@ -5,6 +5,8 @@ const MODES = { serious: 'Serious dating', marriage: 'Marriage-minded', fling: '
 const MODE_HINT = { serious: 'Looking for a real relationship', marriage: 'Ready to settle down', fling: 'Something light — same verification and safety', vibe: 'No labels yet — just talk and see' };
 const GENDERS = { woman: 'Woman', man: 'Man', nonbinary: 'Non-binary' };
 let ME = null;
+let LIVE = ['Bangalore', 'Delhi NCR'];
+fetch('/api/config').then((r) => r.json()).then((c) => { if (c.live_cities) LIVE = c.live_cities; }).catch(() => {});
 let pollTimer = null;
 
 async function api(path, opts = {}) {
@@ -118,7 +120,8 @@ function profileView(onboarding) {
       <div class="field"><label for="name">First name</label><input id="name" value="${esc(m.name)}" maxlength="40" required></div>
       <div class="row">
         <div class="field"><label for="dob">Date of birth</label><input id="dob" type="date" value="${m.dob ? m.dob.slice(0, 10) : ''}" required></div>
-        <div class="field"><label for="city">City</label><input id="city" value="${esc(m.city)}" placeholder="Raipur" required></div>
+        <div class="field"><label for="citysel">City</label><select id="citysel">${[...LIVE, 'Other'].map((c) => `<option ${(c === 'Other' ? (m.city && !LIVE.includes(m.city)) : m.city === c) ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select>
+          <input id="city" value="${esc(LIVE.includes(m.city) ? '' : m.city)}" placeholder="Your city" style="display:${m.city && !LIVE.includes(m.city) ? 'block' : 'none'};margin-top:8px" aria-label="Your city"></div>
       </div>
       <div class="field"><span style="font-size:13px;font-weight:500">I am</span><div class="chips">${pills('gender', GENDERS, m.gender, false)}</div></div>
       <div class="field"><span style="font-size:13px;font-weight:500">Show me</span><div class="chips">${pills('interested', GENDERS, m.interested, true)}</div></div>
@@ -141,6 +144,7 @@ function profileView(onboarding) {
     else document.querySelectorAll(`.pill[data-group="${b.dataset.group}"]`).forEach((o) => o.setAttribute('aria-pressed', o === b ? 'true' : 'false'));
     if (b.dataset.group === 'mode') document.getElementById('modehint').textContent = MODE_HINT[b.dataset.val];
   });
+  citysel.onchange = () => { city.style.display = citysel.value === 'Other' ? 'block' : 'none'; };
   const pick = (g) => [...document.querySelectorAll(`.pill[data-group="${g}"][aria-pressed="true"]`)].map((b) => b.dataset.val);
   const lo = document.getElementById('logout');
   if (lo) lo.onclick = async () => { await api('/logout', { method: 'POST' }); location.hash = 'login'; };
@@ -150,7 +154,7 @@ function profileView(onboarding) {
     try { await saveDraft(); ME.photos = await api('/me/photos', { method: 'POST', body: { image: await compress(inp.files[0]) } }); profileView(onboarding); } catch (x) { toast(x.message); }
   });
   const collect = () => ({
-    name: name.value, dob: dob.value || null, city: city.value, gender: pick('gender')[0], interested: pick('interested'),
+    name: name.value, dob: dob.value || null, city: citysel.value === 'Other' ? city.value : citysel.value, gender: pick('gender')[0], interested: pick('interested'),
     mode: pick('mode')[0], age_min: amin.value, age_max: amax.value, any_city: anycity.checked,
     prompt_a: pa.value, bio: bio.value, tags: tags.value.split(',').map((t) => t.trim()).filter(Boolean)
   });
@@ -215,6 +219,12 @@ async function picksView() {
     const p = picks[i];
     const head = `<div class="top"><h1>Today's picks</h1><a class="chip" href="#profile" style="text-decoration:none">${esc(MODES[ME.mode])}</a></div>
       <p class="hint" style="margin:-8px 0 14px">Only people who fit your filters — and whose filters you fit.</p>`;
+    if (!p && !LIVE.includes(ME.city)) {
+      return render(`<main class="screen">${head}<div class="card" style="padding:28px;text-align:center">
+        <h2 style="margin:0 0 8px">We're not in ${esc(ME.city)} yet</h2>
+        <p class="hint">Swoosh is live in ${esc(LIVE.join(' and '))} right now. Your verified profile is saved, and we'll open your city as soon as enough people join there.</p>
+        <a class="btn ghost" href="#profile" style="margin-top:10px">Change city</a></div></main>${navbar('picks')}`);
+    }
     if (!p) {
       return render(`<main class="screen">${head}<div class="card" style="padding:28px;text-align:center">
         <h2 style="margin:0 0 8px">That's everyone for now</h2>

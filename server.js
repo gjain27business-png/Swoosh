@@ -23,6 +23,15 @@ const pool = new Pool({
 const q = (text, params) => pool.query(text, params);
 
 const MODES = ['serious', 'marriage', 'fling', 'vibe'];
+const LIVE_CITIES = (process.env.LIVE_CITIES || 'Bangalore,Delhi NCR').split(',').map((c) => c.trim()).filter(Boolean);
+// Map common spellings to one city name so people in the same metro match each other.
+function normCity(c) {
+  const v = String(c || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  if (!v) return '';
+  if (/^(bangalore|bengaluru|blr|bangaluru)$/.test(v)) return 'Bangalore';
+  if (/^(delhi|new delhi|delhi ncr|ncr|gurgaon|gurugram|noida|greater noida|ghaziabad|faridabad)$/.test(v)) return 'Delhi NCR';
+  return v.replace(/\b\w/g, (ch) => ch.toUpperCase()).slice(0, 40);
+}
 const GENDERS = ['man', 'woman', 'nonbinary'];
 
 async function migrate() {
@@ -225,7 +234,7 @@ app.put('/api/me', auth, async (req, res) => {
   await q(`UPDATE users SET name=$2, gender=$3, interested=$4, dob=$5, city=$6, any_city=$7, company=$8, hide_company=$9,
     hidden_phones=$10, mode=$11, mode_changed_at=$12, bio=$13, prompt_q=$14, prompt_a=$15, tags=$16, age_min=$17, age_max=$18,
     trusted_name=$19, trusted_phone=$20 WHERE id=$1`,
-  [u.id, clean(b.name ?? u.name, 40), gender, interested, dob, clean(b.city ?? u.city, 40), b.any_city ?? u.any_city,
+  [u.id, clean(b.name ?? u.name, 40), gender, interested, dob, normCity(b.city ?? u.city), b.any_city ?? u.any_city,
     clean(b.company ?? u.company, 60), b.hide_company ?? u.hide_company, hidden, mode, modeChanged,
     clean(b.bio ?? u.bio, 300), clean(b.prompt_q ?? u.prompt_q, 80), clean(b.prompt_a ?? u.prompt_a, 200), tags,
     ageMin, ageMax, clean(b.trusted_name ?? u.trusted_name, 40), normPhone(b.trusted_phone ?? u.trusted_phone)]);
@@ -293,6 +302,7 @@ app.get('/api/photo/:id', auth, async (req, res) => {
 // ---------- discover (mutual filters, same mode, shields) ----------
 app.get('/api/picks', auth, verified, async (req, res) => {
   const u = req.user;
+  if (!LIVE_CITIES.includes(u.city)) return res.json([]);
   const { rows } = await q(`
     SELECT o.* FROM users o
     WHERE o.id <> $1 AND o.status = 'verified' AND o.mode = $2
@@ -506,7 +516,7 @@ app.post('/api/admin/ban/:uid', admin, async (req, res) => {
 });
 
 // ---------- pages ----------
-app.get('/api/config', (req, res) => res.json({ brand: BRAND }));
+app.get('/api/config', (req, res) => res.json({ brand: BRAND, live_cities: LIVE_CITIES }));
 app.use(express.static(path.join(__dirname, 'public'), { extensions: ['html'] }));
 app.get('/app', (req, res) => res.sendFile(path.join(__dirname, 'public', 'app.html')));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
