@@ -11,7 +11,7 @@
 main{max-width:1000px;margin:0 auto;padding:24px}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin:16px 0 28px}
 .stats div{padding:16px}
-.stats b{display:block;font-family:var(--serif);font-weight:500;font-size:32px}
+.stats b{display:block;font-family:var(--display);font-weight:800;letter-spacing:-.03em;font-size:32px;color:var(--heading)}
 .stats div{font-size:13px;color:var(--muted)}
 h1,h2{font-weight:500}
 .req{padding:16px;margin-bottom:16px;display:flex;flex-direction:column;gap:12px}
@@ -22,7 +22,7 @@ h1,h2{font-weight:500}
 </head>
 <body>
 <main>
-  <a class="wordmark" href="/"><i aria-hidden="true"><b></b><b></b></i>PAUSE</a> <span class="hint" style="margin-left:8px">Admin</span>
+  <a class="wordmark" href="/"><i class="mk" aria-hidden="true"><b></b><b></b></i>pause</a> <span class="hint" style="margin-left:8px">Admin</span>
   <form id="lf" style="display:flex;gap:10px;align-items:flex-end;margin-top:20px">
     <div class="field" style="margin:0;flex:1"><label for="pw">Admin password</label><input id="pw" type="password" autocomplete="current-password"></div>
     <button class="btn">Open</button>

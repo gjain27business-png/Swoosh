@@ -41,7 +41,7 @@ const P = {
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'
 };
 const I = (name, extra = '') => `<svg class="ic ${extra}" viewBox="0 0 24 24" aria-hidden="true">${P[name] || ''}</svg>`;
-const WORDMARK = '<span class="wordmark"><i aria-hidden="true"><b></b><b></b></i>PAUSE</span>';
+const WORDMARK = '<span class="wordmark light"><i class="mk" aria-hidden="true"><b></b><b></b></i>pause</span>';
 
 const CAT = {
   steady: { name: 'Steady', icon: 'steady', line: 'Dating that’s going somewhere' },
