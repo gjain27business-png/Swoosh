@@ -3,11 +3,13 @@
 @font-face{font-family:'Bodoni Moda';font-style:normal;font-display:swap;font-weight:400 900;src:url(/fonts/bodoni-moda-latin-ext-standard-normal.woff2) format('woff2-variations'),url(/fonts/bodoni-moda-latin-ext-standard-normal.woff2) format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
 @font-face{font-family:'Manrope';font-style:normal;font-display:swap;font-weight:200 800;src:url(/fonts/manrope-latin-wght-normal.woff2) format('woff2-variations'),url(/fonts/manrope-latin-wght-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
 @font-face{font-family:'Manrope';font-style:normal;font-display:swap;font-weight:200 800;src:url(/fonts/manrope-latin-ext-wght-normal.woff2) format('woff2-variations'),url(/fonts/manrope-latin-ext-wght-normal.woff2) format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
-/* PAUSE design tokens — midnight, pearl, one brass accent */
+/* PAUSE design tokens — dusk in the city: coral, rose, plum, marigold */
 :root{
-  --pearl:#F4F4F1;--surface:#FFFFFF;--ink:#151A2B;--muted:#626777;--hair:#E3E4E8;--hair2:#D3D6DD;--wash:#ECEDEF;
-  --midnight:#1B2238;--night:#0F1320;--night2:#171C2C;--night3:#222839;--nline:#2F364A;--ivory:#EFEAE1;
-  --brass:#A9874F;--brass-soft:#F2ECE0;--claret:#8C2F3C;--ok:#2E6B4F;--ok-soft:#E5EFEA;
+  --pearl:#FBF7F8;--surface:#FFFFFF;--ink:#24152F;--muted:#6E6276;--hair:#EEE6EB;--hair2:#DDD0D8;--wash:#F5EDF1;
+  --primary:#C92E5C;--primary-hover:#B02750;--rose:#F0466E;--coral:#FF7A59;--marigold:#F4A63A;--plum:#5A2A6B;
+  --midnight:#2B1A3D;--night:#1D1229;--night2:#27193A;--night3:#342449;--nline:#47355F;--ivory:#FFF4EC;
+  --brass:#D18A1E;--brass-soft:#FFF1DC;--claret:#B4234D;--ok:#2E7D5B;--ok-soft:#E4F2EB;
+  --dusk:linear-gradient(135deg,#FF8A5B 0%,#F0466E 46%,#7B3FA0 100%);
   --serif:'Bodoni Moda',Georgia,serif;--sans:Manrope,system-ui,-apple-system,sans-serif;
 }
 *{box-sizing:border-box}
@@ -21,8 +23,8 @@ button,input,select,textarea{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--brass);outline-offset:2px}
 img{-webkit-user-drag:none;-webkit-touch-callout:none;user-select:none}
 .ic{width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:52px;padding:0 22px;border-radius:14px;border:1px solid var(--midnight);background:var(--midnight);color:#fff;font-weight:600;letter-spacing:.01em;cursor:pointer;text-decoration:none;transition:background .2s,transform .12s}
-.btn:hover{background:#252D47}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:52px;padding:0 22px;border-radius:14px;border:1px solid var(--primary);background:var(--primary);color:#fff;font-weight:600;letter-spacing:.01em;cursor:pointer;text-decoration:none;transition:background .2s,transform .12s}
+.btn:hover{background:var(--primary-hover)}
 .btn:active{transform:scale(.98)}
 .btn.ghost{background:transparent;color:var(--ink);border-color:var(--hair2)}
 .btn.ghost:hover{background:var(--wash)}
@@ -32,7 +34,7 @@ img{-webkit-user-drag:none;-webkit-touch-callout:none;user-select:none}
 .field{display:flex;flex-direction:column;gap:7px;margin-bottom:16px}
 .field label,.flabel{font-size:13px;font-weight:600;color:var(--ink)}
 .field input,.field select,.field textarea{min-height:50px;padding:12px 14px;border-radius:12px;border:1px solid var(--hair2);background:var(--surface);color:var(--ink);font-size:16px;transition:border-color .2s}
-.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--midnight);box-shadow:0 0 0 3px rgba(27,34,56,.08)}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(201,46,92,.12)}
 .field textarea{min-height:88px;resize:vertical}
 .hint{font-size:13px;color:var(--muted);line-height:1.5}
 .err{color:var(--claret);font-size:14px;min-height:20px;margin:6px 0}
@@ -40,10 +42,11 @@ img{-webkit-user-drag:none;-webkit-touch-callout:none;user-select:none}
 .chip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;background:var(--wash);font-size:13px;color:var(--ink)}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .pill{min-height:44px;padding:0 18px;border-radius:999px;border:1px solid var(--hair2);background:var(--surface);color:var(--ink);font-weight:500;cursor:pointer}
-.pill[aria-pressed="true"]{background:var(--midnight);color:#fff;border-color:var(--midnight)}
+.pill[aria-pressed="true"]{background:var(--primary);color:#fff;border-color:var(--primary)}
 .note{display:flex;gap:10px;padding:14px 16px;border-radius:14px;background:var(--wash);font-size:13px;line-height:1.5;color:var(--ink)}
 .wordmark{display:inline-flex;align-items:center;gap:10px;font-family:var(--sans);font-weight:600;font-size:14px;letter-spacing:.32em;text-decoration:none;color:inherit}
 .wordmark i{display:inline-flex;gap:3px}
-.wordmark i b{display:block;width:3px;height:14px;border-radius:2px;background:var(--brass)}
+.wordmark i b{display:block;width:3px;height:14px;border-radius:2px;background:var(--marigold)}
+.wordmark i b:first-child{background:var(--rose)}
 .logo{display:inline-flex;align-items:center;gap:10px;font-family:var(--sans);font-weight:600;font-size:14px;letter-spacing:.32em;text-decoration:none;color:inherit}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}

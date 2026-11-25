@@ -146,7 +146,7 @@ function authView(mode) {
     <form id="f">
       <div class="field"><label for="phone">Mobile number</label><input id="phone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="10-digit number" required></div>
       <div class="field"><label for="pw">Password</label><input id="pw" type="password" autocomplete="${signup ? 'new-password' : 'current-password'}" minlength="8" required placeholder="At least 8 characters"></div>
-      ${signup ? '<label style="display:flex;gap:10px;align-items:flex-start;font-size:14px;margin-bottom:14px"><input id="agree" type="checkbox" style="width:20px;height:20px;margin-top:1px;flex:none;accent-color:#1B2238" required><span>I’m 18 or older and agree to the <a href="/terms" target="_blank">Terms</a> and <a href="/privacy" target="_blank">Privacy Policy</a>.</span></label>' : ''}
+      ${signup ? '<label style="display:flex;gap:10px;align-items:flex-start;font-size:14px;margin-bottom:14px"><input id="agree" type="checkbox" style="width:20px;height:20px;margin-top:1px;flex:none;accent-color:#C92E5C" required><span>I’m 18 or older and agree to the <a href="/terms" target="_blank">Terms</a> and <a href="/privacy" target="_blank">Privacy Policy</a>.</span></label>' : ''}
       <div class="err" id="err" role="alert"></div>
       <button class="btn block" type="submit">${signup ? 'Create account' : 'Log in'}</button>
     </form>
@@ -343,9 +343,9 @@ function pickCard(p) {
     <div class="body">
       ${p.destiny && p.destiny.reasons.length ? `<ul class="reasons" aria-label="Why you match">${p.destiny.reasons.map((r) => `<li>${I('star')}<span>${esc(r)}</span></li>`).join('')}</ul>` : ''}
       ${p.prompt_a ? `<div class="prompt"><small>${esc(p.prompt_q)}</small><p>${esc(p.prompt_a)}</p></div>` : ''}
-      ${p.bio ? `<p style="margin:0;font-size:15px;line-height:1.6;color:#3A3F50">${esc(p.bio)}</p>` : ''}
+      ${p.bio ? `<p style="margin:0;font-size:15px;line-height:1.6;color:#4A3D55">${esc(p.bio)}</p>` : ''}
       ${facts.length ? `<div class="facts">${facts.map(([k, v]) => `<div><small>${k}</small><span>${esc(v)}</span></div>`).join('')}</div>` : ''}
-      ${p.tags.length ? `<div class="chips">${p.tags.map((t) => `<span class="chip" ${shared.includes(t) ? 'style="background:var(--brass-soft);color:#6E5631"' : ''}>${esc(t)}</span>`).join('')}</div>` : ''}
+      ${p.tags.length ? `<div class="chips">${p.tags.map((t) => `<span class="chip" ${shared.includes(t) ? 'style="background:var(--brass-soft);color:#8A5300"' : ''}>${esc(t)}</span>`).join('')}</div>` : ''}
     </div>
   </article>`;
 }
@@ -357,8 +357,8 @@ function celebrate(other, matchId, masked) {
   ov.innerHTML = `<div class="pair"><div>${mine}</div><div>${ph}</div></div>
     <h2>It’s mutual.</h2>
     <p>You and ${esc(other.name)} liked each other.${masked ? ' You’re both masked, so talk first and unmask when you’re both ready.' : ' Numbers stay private until you both choose to share them.'}</p>
-    <a class="btn" href="#chat/${matchId}" style="background:var(--ivory);color:var(--ink);border-color:var(--ivory);min-width:240px">Open chat</a>
-    <button class="btn ghost" style="color:#ECEAF0;border-color:var(--nline);min-width:240px" id="keep">Keep browsing</button>`;
+    <a class="btn" href="#chat/${matchId}" style="min-width:240px">Open chat</a>
+    <button class="btn ghost" style="color:#F5EEF6;border-color:var(--nline);min-width:240px" id="keep">Keep browsing</button>`;
   document.body.appendChild(ov);
   ov.querySelector('a').onclick = () => ov.remove();
   ov.querySelector('#keep').onclick = () => ov.remove();
@@ -376,7 +376,7 @@ function destinyPanel(drop) {
   }
   if (!drop) return '';
   if (drop.state === 'waiting') {
-    const last = drop.last && drop.last.pick && !drop.last.acted ? `<a href="#drop" style="display:block;font-size:13px;color:#D9C29A;margin-top:6px">Yesterday’s match, ${esc(drop.last.pick.name)}, is still waiting</a>` : '';
+    const last = drop.last && drop.last.pick && !drop.last.acted ? `<a href="#drop" style="display:block;font-size:13px;color:#F6BE6B;margin-top:6px">Yesterday’s match, ${esc(drop.last.pick.name)}, is still waiting</a>` : '';
     return `<div class="panel"><span class="circ">${I('star')}</span><div><b>Tonight’s Destiny</b><small>Arrives at 9 pm, in <span id="cd" data-at="${drop.opens_at}">${countdown(drop.opens_at)}</span></small>${last}</div></div>`;
   }
   if (drop.state === 'ready') {
@@ -473,21 +473,21 @@ async function destinyView(mode) {
     try { ME = await api('/destiny/answers', { method: 'POST', body: { mode, answers: ans } }); } catch (x) { toast(x.message); i = 0; return draw(); }
     const here = mode === ME.mode;
     render(`<div class="qwrap fade-in" style="justify-content:center;text-align:center;align-items:center">
-      <span class="circ" style="width:60px;height:60px;border-radius:30px;background:transparent;border-color:#45506B;color:#D9C29A">${I('star')}</span>
+      <span class="circ" style="width:60px;height:60px;border-radius:30px;background:transparent;border-color:#5A4670;color:#F6BE6B">${I('star')}</span>
       <h2 style="margin:22px 0 10px">Destiny is on.</h2>
-      <p style="color:#B9BECD;max-width:300px;line-height:1.6;margin:0 0 28px">${here ? 'Your picks now show a match score, and each night at 9 pm you’ll get one considered match with the reasons you fit.' : `Saved for ${CAT[mode].name}. It turns on when you move to that category.`}</p>
-      <a class="btn" href="#${ME.status === 'verified' ? 'picks' : 'profile'}" style="background:var(--ivory);color:var(--ink);border-color:var(--ivory);min-width:240px">${ME.status === 'verified' ? 'See my picks' : 'Back to my profile'}</a></div>`, true);
+      <p style="color:#D3C6D9;max-width:300px;line-height:1.6;margin:0 0 28px">${here ? 'Your picks now show a match score, and each night at 9 pm you’ll get one considered match with the reasons you fit.' : `Saved for ${CAT[mode].name}. It turns on when you move to that category.`}</p>
+      <a class="btn" href="#${ME.status === 'verified' ? 'picks' : 'profile'}" style="min-width:240px">${ME.status === 'verified' ? 'See my picks' : 'Back to my profile'}</a></div>`, true);
   };
   const draw = () => {
     if (i >= qs.length) return finish();
     const qq = qs[i];
     render(`<div class="qwrap fade-in">
-      <div style="display:flex;align-items:center;gap:12px"><button id="qb" class="back" aria-label="Back" style="color:#ECEAF0">${I('back')}</button>
-        <div class="qbar" style="flex:1"><i style="width:${(i / qs.length) * 100}%"></i></div><span style="font-size:13px;color:#9096A8">${i + 1} of ${qs.length}</span></div>
-      <p style="margin:22px 0 0;font-size:13px;color:#9096A8">Destiny, ${esc(CAT[mode].name)}</p>
+      <div style="display:flex;align-items:center;gap:12px"><button id="qb" class="back" aria-label="Back" style="color:#F5EEF6">${I('back')}</button>
+        <div class="qbar" style="flex:1"><i style="width:${(i / qs.length) * 100}%"></i></div><span style="font-size:13px;color:#A898B2">${i + 1} of ${qs.length}</span></div>
+      <p style="margin:22px 0 0;font-size:13px;color:#A898B2">Destiny, ${esc(CAT[mode].name)}</p>
       <h2 style="margin-top:8px">${esc(qq.q)}</h2>
       <div role="group" aria-label="${esc(qq.q)}">${qq.opts.map((o, k) => `<button class="qopt" data-k="${k}" aria-pressed="${ans[qq.id] === k}">${esc(o)}</button>`).join('')}</div>
-      <p style="margin-top:auto;padding-top:20px;font-size:13px;color:#7A8093;text-align:center">Used only to rank your matches. Never shown on your profile.</p></div>`, true);
+      <p style="margin-top:auto;padding-top:20px;font-size:13px;color:#8E7E99;text-align:center">Used only to rank your matches. Never shown on your profile.</p></div>`, true);
     document.querySelectorAll('.qopt').forEach((b) => b.onclick = () => {
       ans[qq.id] = +b.dataset.k;
       document.querySelectorAll('.qopt').forEach((o) => o.setAttribute('aria-pressed', o === b ? 'true' : 'false'));
@@ -566,7 +566,7 @@ function unmaskFx(o) {
   ov.className = 'celebrate';
   ov.innerHTML = `<div class="reveal-photo">${o.photos[0] ? `<img src="/api/photo/${o.photos[0].id}?u=1" alt="${esc(o.name)}">` : ''}</div>
     <h2>Unmasked.</h2><p>You and ${esc(o.name)} both chose to unmask. Photos are open now.</p>
-    <button class="btn" style="background:var(--ivory);color:var(--ink);border-color:var(--ivory);min-width:220px">Back to chat</button>`;
+    <button class="btn" style="min-width:220px">Back to chat</button>`;
   document.body.appendChild(ov);
   const img = ov.querySelector('img');
   const go = () => setTimeout(() => ov.querySelector('.reveal-photo').classList.add('clear'), 80);
@@ -608,7 +608,7 @@ function openGames(id, o, refresh) {
     <button class="gamecard" id="gTot"><span class="circ">${I('split')}</span><span><b>This or that</b><span class="hint">You both pick. Answers show only when you’ve both chosen.</span></span></button>
     <button class="gamecard" id="gTtl"><span class="circ">${I('list3')}</span><span><b>Two truths, one lie</b><span class="hint">Write three things about you. They guess which one isn’t true.</span></span></button>
     <form id="ttlf" style="display:none;margin-top:16px">
-      ${[0, 1, 2].map((k) => `<div class="field" style="flex-direction:row;align-items:center;gap:10px"><input type="radio" name="lie" value="${k}" aria-label="Statement ${k + 1} is the lie" ${k === 2 ? 'checked' : ''} style="width:20px;height:20px;flex:none;accent-color:#1B2238"><input id="st${k}" maxlength="120" placeholder="${['I’ve ridden to Ladakh on a bike', 'I make a very good biryani', 'I’ve never watched Sholay'][k]}" style="flex:1" required></div>`).join('')}
+      ${[0, 1, 2].map((k) => `<div class="field" style="flex-direction:row;align-items:center;gap:10px"><input type="radio" name="lie" value="${k}" aria-label="Statement ${k + 1} is the lie" ${k === 2 ? 'checked' : ''} style="width:20px;height:20px;flex:none;accent-color:#C92E5C"><input id="st${k}" maxlength="120" placeholder="${['I’ve ridden to Ladakh on a bike', 'I make a very good biryani', 'I’ve never watched Sholay'][k]}" style="flex:1" required></div>`).join('')}
       <p class="hint" style="margin-top:-4px">Select the circle next to your lie.</p>
       <button class="btn block">Send</button></form>`);
   sh.querySelector('#gTot').onclick = async () => { try { await api(`/matches/${id}/game`, { method: 'POST', body: { type: 'tot' } }); closeSheet(); refresh(); } catch (x) { toast(x.message); } };
@@ -644,7 +644,7 @@ async function chatView(id) {
         reveal = `<div style="padding:0 14px 6px">${d.level === 0 ? `<button class="lightbtn" style="width:100%" data-r="request">${I('mask')}Unmask</button>` : `<button class="darkbtn" style="width:100%" data-r="request">${I('phone')}Share numbers</button>`}</div>`;
       }
     }
-    const contact = d.level >= 2 && o.phone ? `<div class="revealbox"><div style="display:flex;align-items:center;gap:10px">${I('phone')}<span>${esc(o.name)}: <a href="tel:+91${esc(o.phone)}" style="color:#E6D2AC">+91 ${esc(o.phone)}</a></span></div><div style="font-size:13px;color:#9096A8">Meeting for the first time? Choose a busy public place and share your plan from Safety.</div></div>` : '';
+    const contact = d.level >= 2 && o.phone ? `<div class="revealbox"><div style="display:flex;align-items:center;gap:10px">${I('phone')}<span>${esc(o.name)}: <a href="tel:+91${esc(o.phone)}" style="color:#FFD9A0">+91 ${esc(o.phone)}</a></span></div><div style="font-size:13px;color:#A898B2">Meeting for the first time? Choose a busy public place and share your plan from Safety.</div></div>` : '';
     render(`<div class="night">
       <header class="chathead">
         <a class="back" href="#chats" aria-label="Back to chats" style="width:36px">${I('back')}</a>
@@ -738,7 +738,7 @@ function safetyView() {
     <a class="btn danger block" href="tel:112" style="margin-top:18px">${I('phone')}Emergency: call 112</a>
     <button class="btn ghost block" id="alert" style="margin-top:10px">${I('pin')}Send my location to my trusted person</button>
     <p class="hint" style="margin-top:24px">Questions about a rule or a problem? <button class="linkbtn" data-ask type="button">Ask for help</button> or contact our <a href="/grievance" target="_blank">grievance officer</a>.</p>
-    <button class="btn ghost block" id="del" style="margin-top:16px;color:var(--claret);border-color:#D9B9BE">Delete my account and data</button>
+    <button class="btn ghost block" id="del" style="margin-top:16px;color:var(--claret);border-color:#EBB9C8">Delete my account and data</button>
   </main>${m.status === 'verified' ? navbar('safety') : ''}`);
   el('pz').onchange = async () => { try { ME = await api('/me', { method: 'PUT', body: { paused: el('pz').checked } }); toast(ME.paused ? 'Paused. You’re hidden from picks.' : 'You’re back in picks.'); } catch (x) { toast(x.message); } };
   el('saveshield').onclick = async () => {
