@@ -85,7 +85,13 @@ async function migrate() {
   ALTER TABLE messages ADD COLUMN IF NOT EXISTS kind TEXT DEFAULT 'text';
   ALTER TABLE messages ADD COLUMN IF NOT EXISTS meta JSONB DEFAULT '{}';
   ALTER TABLE messages ADD COLUMN IF NOT EXISTS flag TEXT;
+  ALTER TABLE photos ADD COLUMN IF NOT EXISTS token TEXT;
+  CREATE UNIQUE INDEX IF NOT EXISTS photos_token ON photos(token);
+  ALTER TABLE verifications ADD COLUMN IF NOT EXISTS id_last4 TEXT DEFAULT '';
   `);
+  // Photos are addressed by a random token, never by their row number.
+  const { rows: untokened } = await q('SELECT id FROM photos WHERE token IS NULL');
+  for (const r of untokened) await q('UPDATE photos SET token=$2 WHERE id=$1', [r.id, newToken()]);
   // One-time move from the Swoosh model (4 modes, 4 reveal levels) to PAUSE (3 categories, 3 steps).
   const { rows } = await q("SELECT 1 FROM app_meta WHERE key='pause_v1'");
   if (!rows[0]) {
@@ -105,7 +111,33 @@ app.use((req, res, next) => { res.set('X-Content-Type-Options', 'nosniff'); res.
 
 // ---------- helpers ----------
 const normPhone = (p) => String(p || '').replace(/\D/g, '').slice(-10);
-const hmac = (s) => crypto.createHmac('sha256', SECRET).update(String(s).toUpperCase().replace(/\s/g, '')).digest('hex');
+const newToken = () => crypto.randomBytes(12).toString('hex');
+const TOKEN_RE = /^[a-f0-9]{24}$/;
+
+// Simple in-memory rate limiter (one app instance). key -> { n, reset }.
+const buckets = new Map();
+function limited(key, max, windowMs) {
+  const now = Date.now();
+  let b = buckets.get(key);
+  if (!b || b.reset < now) { b = { n: 0, reset: now + windowMs }; buckets.set(key, b); }
+  b.n++;
+  if (buckets.size > 50000) for (const [k, v] of buckets) if (v.reset < now) buckets.delete(k);
+  return b.n > max ? Math.ceil((b.reset - now) / 60000) : 0;
+}
+// Per-IP limits are loose because many Indian mobile users share one IP; per-phone and per-account limits do the real work.
+const IP_SCALE = Math.max(1, Number(process.env.RL_IP_SCALE) || 1);
+const tooMany = (res, mins) => err(res, 429, `Too many attempts. Try again in ${mins} minute${mins === 1 ? '' : 's'}.`);
+
+// ID numbers: normalised, checked against the format for the chosen document, then only a one-way code is kept.
+const ID_FORMATS = {
+  Aadhaar: [/^[2-9]\d{11}$/, 'An Aadhaar number has 12 digits.'],
+  PAN: [/^[A-Z]{5}\d{4}[A-Z]$/, 'A PAN looks like ABCDE1234F.'],
+  'Driving licence': [/^[A-Z]{2}\d{13}$/, 'A driving licence number looks like MH1420110012345.'],
+  'Voter ID': [/^[A-Z]{3}\d{7}$/, 'A Voter ID (EPIC) number looks like ABC1234567.'],
+  Passport: [/^[A-Z]\d{7}$/, 'A passport number looks like A1234567.']
+};
+const normId = (s) => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+const hmac = (s) => crypto.createHmac('sha256', SECRET).update(normId(s)).digest('hex');
 const ageOf = (dob) => {
   if (!dob) return null;
   const [y, m, d] = String(dob).slice(0, 10).split('-').map(Number);
@@ -148,6 +180,9 @@ async function auth(req, res, next) {
 }
 const authW = wrap(auth);
 const verified = (req, res, next) => (req.user.status === 'verified' ? next() : err(res, 403, 'Verification pending'));
+for (const name of ['id', 'uid', 'mid']) {
+  app.param(name, (req, res, next, v) => (/^\d{1,9}$/.test(v) ? next() : err(res, 404, 'Not found')));
+}
 
 async function activeCount(uid) {
   const { rows } = await q('SELECT count(*)::int AS n FROM matches WHERE (a_id=$1 OR b_id=$1) AND NOT closed', [uid]);
@@ -186,7 +221,7 @@ async function destinyAnswers(uid, mode) {
   return rows[0] ? rows[0].answers : null;
 }
 async function photoIds(uid) {
-  const { rows } = await q('SELECT id, idx FROM photos WHERE user_id=$1 ORDER BY idx', [uid]);
+  const { rows } = await q('SELECT token AS id, idx FROM photos WHERE user_id=$1 ORDER BY idx', [uid]);
   return rows;
 }
 
@@ -217,6 +252,8 @@ async function meJson(u) {
 
 // ---------- auth ----------
 app.post('/api/signup', wrap(async (req, res) => {
+  const wait = limited('signup:' + req.ip, 30 * IP_SCALE, 60 * 60000);
+  if (wait) return tooMany(res, wait);
   const phone = normPhone(req.body.phone);
   const pw = String(req.body.password || '');
   if (phone.length !== 10) return err(res, 400, 'Enter a valid 10-digit mobile number');
@@ -233,8 +270,12 @@ app.post('/api/signup', wrap(async (req, res) => {
   }
 }));
 app.post('/api/login', wrap(async (req, res) => {
-  const { rows } = await q('SELECT * FROM users WHERE phone=$1', [normPhone(req.body.phone)]);
+  const phone = normPhone(req.body.phone);
+  const wait = limited('login-ip:' + req.ip, 100 * IP_SCALE, 15 * 60000) || limited('login-phone:' + phone, 8, 15 * 60000);
+  if (wait) return tooMany(res, wait);
+  const { rows } = await q('SELECT * FROM users WHERE phone=$1', [phone]);
   if (!rows[0] || !(await bcrypt.compare(String(req.body.password || ''), rows[0].pass_hash))) return err(res, 401, 'Wrong number or password');
+  buckets.delete('login-phone:' + phone);
   if (rows[0].status === 'banned') return err(res, 403, 'This account has been banned.');
   req.session.uid = rows[0].id;
   await q('INSERT INTO audit_ips(user_id, ip) VALUES($1,$2)', [rows[0].id, req.ip]);
@@ -268,6 +309,9 @@ app.put('/api/me', authW, wrap(async (req, res) => {
   const height = b.height_cm === '' || b.height_cm === null ? null : (parseInt(b.height_cm ?? u.height_cm, 10) || null);
   const kmin = [0, 18, 24, 28].includes(parseInt(b.kundli_min, 10)) ? parseInt(b.kundli_min, 10) : u.kundli_min;
   const bool = (k) => (typeof b[k] === 'boolean' ? b[k] : u[k]);
+  if ([b.name, b.bio, b.prompt_a, ...(Array.isArray(b.tags) ? b.tags : [])].some((t) => t && hasContact(t))) {
+    return err(res, 400, 'Keep numbers, emails and social handles out of your profile. You can share them in a chat once you both agree.');
+  }
   await q(`UPDATE users SET name=$2, gender=$3, interested=$4, dob=$5, city=$6, any_city=$7, company=$8, hide_company=$9,
     hidden_phones=$10, mode=$11, mode_changed_at=$12, bio=$13, prompt_q=$14, prompt_a=$15, tags=$16, age_min=$17, age_max=$18,
     trusted_name=$19, trusted_phone=$20, masked=$21, destiny=$22, paused=$23, show_zodiac=$24, religion=$25, diet=$26,
@@ -290,13 +334,13 @@ app.post('/api/me/photos', authW, wrap(async (req, res) => {
   if (existing[0].n >= 4) return err(res, 400, 'Up to 4 photos');
   const full = await sharp(buf).rotate().resize(900, 1200, { fit: 'inside' }).jpeg({ quality: 82 }).toBuffer();
   const blur = await sharp(buf).rotate().resize(48, 64, { fit: 'cover' }).blur(6).resize(360, 480).jpeg({ quality: 60 }).toBuffer();
-  await q('INSERT INTO photos(user_id, idx, full_img, blur_img) VALUES($1,$2,$3,$4)', [req.user.id, existing[0].n, full, blur]);
+  await q('INSERT INTO photos(user_id, idx, full_img, blur_img, token) VALUES($1,$2,$3,$4,$5)', [req.user.id, existing[0].n, full, blur, newToken()]);
   res.json(await photoIds(req.user.id));
 }));
-app.delete('/api/me/photos/:id', authW, wrap(async (req, res) => {
-  await q('DELETE FROM photos WHERE id=$1 AND user_id=$2', [req.params.id, req.user.id]);
+app.delete('/api/me/photos/:token', authW, wrap(async (req, res) => {
+  await q('DELETE FROM photos WHERE token=$1 AND user_id=$2', [String(req.params.token), req.user.id]);
   const rows = await photoIds(req.user.id);
-  for (let i = 0; i < rows.length; i++) await q('UPDATE photos SET idx=$2 WHERE id=$1', [rows[i].id, i]);
+  for (let i = 0; i < rows.length; i++) await q('UPDATE photos SET idx=$2 WHERE token=$1', [rows[i].id, i]);
   res.json(await photoIds(req.user.id));
 }));
 
@@ -306,18 +350,23 @@ app.post('/api/me/verify', authW, wrap(async (req, res) => {
   if (!u.name || !u.gender || !u.dob || !u.city) return err(res, 400, 'Complete your profile first');
   const { rows: ph } = await q('SELECT count(*)::int AS n FROM photos WHERE user_id=$1', [u.id]);
   if (ph[0].n < 1) return err(res, 400, 'Add at least one photo first');
+  const wait = limited('verify:' + u.id, 6, 24 * 60 * 60000);
+  if (wait) return tooMany(res, wait);
   const idImg = decodeImage(req.body.id_image), selfie = decodeImage(req.body.selfie);
-  const idNum = clean(req.body.id_number, 30);
-  if (!idImg || !selfie || idNum.length < 6) return err(res, 400, 'Add your ID photo, ID number and a selfie');
+  const idType = ID_FORMATS[req.body.id_type] ? req.body.id_type : '';
+  const idNum = normId(clean(req.body.id_number, 40));
+  if (!idType) return err(res, 400, 'Choose your ID type');
+  if (!idImg || !selfie || !idNum) return err(res, 400, 'Add your ID photo, ID number and a selfie');
+  if (!ID_FORMATS[idType][0].test(idNum)) return err(res, 400, 'That doesn’t look like a valid ' + idType + ' number. ' + ID_FORMATS[idType][1]);
   const idHash = hmac(idNum);
   const { rows: banned } = await q('SELECT 1 FROM banned_ids WHERE id_hash=$1', [idHash]);
   if (banned[0]) return err(res, 403, 'This ID cannot be used on ' + BRAND + '.');
   const { rows: dup } = await q('SELECT id FROM users WHERE id_hash=$1 AND id<>$2', [idHash, u.id]);
   if (dup[0]) return err(res, 409, 'This ID is already linked to another account. One person, one account.');
   await q('UPDATE users SET id_hash=$2, status=$3, reject_reason=$4 WHERE id=$1', [u.id, idHash, 'pending', '']);
-  await q(`INSERT INTO verifications(user_id, id_type, id_image, selfie) VALUES($1,$2,$3,$4)
-    ON CONFLICT (user_id) DO UPDATE SET id_type=$2, id_image=$3, selfie=$4, submitted_at=now()`,
-  [u.id, clean(req.body.id_type, 30), idImg, selfie]);
+  await q(`INSERT INTO verifications(user_id, id_type, id_image, selfie, id_last4) VALUES($1,$2,$3,$4,$5)
+    ON CONFLICT (user_id) DO UPDATE SET id_type=$2, id_image=$3, selfie=$4, id_last4=$5, submitted_at=now()`,
+  [u.id, idType, idImg, selfie, idNum.slice(-4)]);
   res.json({ ok: true, status: 'pending' });
 }));
 
@@ -372,22 +421,48 @@ async function watermark(img, viewerId) {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><g transform="rotate(-24 ${w / 2} ${h / 2})" font-family="sans-serif" font-size="22" font-weight="700" fill="#ffffff" fill-opacity="0.16">${marks}</g></svg>`;
   return sharp(img).composite([{ input: Buffer.from(svg) }]).jpeg({ quality: 82 }).toBuffer();
 }
-app.get('/api/photo/:id', authW, wrap(async (req, res) => {
-  const { rows } = await q(`SELECT p.id, p.user_id, p.full_img, p.blur_img, u.masked, u.mode, u.status
-    FROM photos p JOIN users u ON u.id=p.user_id WHERE p.id=$1`, [req.params.id]);
-  const p = rows[0];
+// Who may see a photo: its owner; an open match (sharp only after both unmask); or someone this person
+// could actually be shown in picks (same category, mutual interest, not paused, not blocked, contact shield respected).
+function couldSee(me, o) {
+  if (o.status !== 'verified' || o.paused || o.mode !== me.mode) return false;
+  if (!(me.interested || []).includes(o.gender) || !(o.interested || []).includes(me.gender)) return false;
+  if ((o.hidden_phones || []).includes(me.phone) || (me.hidden_phones || []).includes(o.phone)) return false;
+  if (me.company && o.company && me.company.toLowerCase() === o.company.toLowerCase() && (me.hide_company || o.hide_company)) return false;
+  return true;
+}
+const wmCache = new Map(); // `${photo}:${viewer}` -> watermarked jpeg, kept small
+async function watermarkCached(pid, img, viewerId) {
+  const key = pid + ':' + viewerId;
+  if (wmCache.has(key)) { const v = wmCache.get(key); wmCache.delete(key); wmCache.set(key, v); return v; }
+  const out = await watermark(img, viewerId);
+  wmCache.set(key, out);
+  if (wmCache.size > 300) wmCache.delete(wmCache.keys().next().value);
+  return out;
+}
+app.get('/api/photo/:token', authW, wrap(async (req, res) => {
+  const token = String(req.params.token);
+  if (!TOKEN_RE.test(token)) return res.status(404).end();
+  const { rows } = await q(`SELECT p.id AS pid, p.user_id, p.full_img, p.blur_img, u.masked, u.mode, u.status, u.paused, u.gender, u.interested,
+      u.phone, u.hidden_phones, u.company, u.hide_company
+    FROM photos p JOIN users u ON u.id=p.user_id WHERE p.token=$1`, [token]);
+  const p = rows[0], me = req.user;
   if (!p) return res.status(404).end();
   res.set('Cache-Control', 'private, no-store');
   res.set('Content-Type', 'image/jpeg');
-  if (p.user_id === req.user.id) return res.send(p.full_img);
-  let full = false;
-  const m = await matchBetween(req.user.id, p.user_id);
-  if (m) full = m.level >= 1;
-  else if (req.user.status === 'verified' && p.status === 'verified' && !req.user.masked && !p.masked && req.user.mode === p.mode) {
-    const { rows: bl } = await q('SELECT 1 FROM blocks WHERE (blocker=$1 AND blocked=$2) OR (blocker=$2 AND blocked=$1)', [req.user.id, p.user_id]);
-    full = !bl[0];
+  if (p.user_id === me.id) return res.send(p.full_img);
+  if (me.status !== 'verified') return res.status(404).end();
+  const { rows: bl } = await q('SELECT 1 FROM blocks WHERE (blocker=$1 AND blocked=$2) OR (blocker=$2 AND blocked=$1)', [me.id, p.user_id]);
+  if (bl[0]) return res.status(404).end();
+  const m = await matchBetween(me.id, p.user_id);
+  let full;
+  if (m) {
+    if (m.closed) return res.status(404).end();
+    full = m.level >= 1;
+  } else {
+    if (!couldSee(me, p)) return res.status(404).end();
+    full = !me.masked && !p.masked;
   }
-  res.send(full ? await watermark(p.full_img, req.user.id) : p.blur_img);
+  res.send(full ? await watermarkCached(p.pid, p.full_img, me.id) : p.blur_img);
 }));
 
 // ---------- discover ----------
@@ -509,7 +584,23 @@ app.post('/api/like/:id', authW, verified, wrap(async (req, res) => {
 
 // ---------- chats, unmask, games ----------
 const LEVELS = ['Masked', 'Unmasked', 'Numbers shared'];
-const CONTACT_RE = /(\d[\s-]?){10}|@[a-z0-9_.]{3,}|instagram|\binsta\b|whats ?app|\bsnap(chat)?\b|telegram|\bfb\.com|facebook\.com/i;
+// Contact details stay locked until both people choose Share numbers. Catches numbers split by spaces,
+// dots or dashes, numbers written in words (English and common Hindi), emails, @handles and app names.
+const NUM_WORDS = { zero: 1, oh: 1, one: 1, two: 1, three: 1, four: 1, five: 1, six: 1, seven: 1, eight: 1, nine: 1, shunya: 1, ek: 1, paanch: 1, panch: 1, saat: 1, aath: 1, nau: 1 };
+const HANDLE_RE = /@[a-z0-9_.]{3,}|[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}|\b(instagram|insta|ig|snap|snapchat|whats ?app|wa\.me|telegram|t\.me|facebook|fb|gmail)\b/i;
+function hasContact(text) {
+  const body = String(text || '');
+  if (HANDLE_RE.test(body)) return true;
+  let run = 0;
+  for (const t of body.toLowerCase().split(/[\s.,\-()+/_:;|*#]+/)) {
+    if (!t) continue;
+    if (/^\d+$/.test(t)) run += t.length;
+    else if (NUM_WORDS[t]) run += 1;
+    else run = 0;
+    if (run >= 10) return true;
+  }
+  return false;
+}
 const ABUSE_RE = /\b(bitch|slut|whore|randi|chutiya|madarchod|bhenchod|behenchod|bhosdi\w*|harami|kutti|kutiya|saali|fuck (you|off)|ugly cow|fat cow)\b/i;
 function scamFlag(body) {
   if (/\b(crypto|bitcoin|btc|usdt|binance|forex|trading (tips|signals?)|investment plan|double (your|the) money|guaranteed returns?)\b/i.test(body)) return 'crypto';
@@ -576,14 +667,15 @@ app.post('/api/matches/:id/messages', authW, verified, wrap(async (req, res) => 
   if (m.closed) return err(res, 400, 'This chat is closed');
   const body = clean(req.body.body, 1000);
   if (!body) return err(res, 400, 'Empty message');
-  if (m.level < 2 && CONTACT_RE.test(body)) return err(res, 400, 'Numbers and social handles unlock when you both tap Share numbers.');
+  if (m.level < 2 && hasContact(body)) return err(res, 400, 'Numbers and social handles unlock when you both tap Share numbers.');
   if (!req.body.confirm && ABUSE_RE.test(body)) return err(res, 409, 'This might come across as hurtful. Send anyway?', { nudge: true });
   await q('INSERT INTO messages(match_id, sender_id, body, flag) VALUES($1,$2,$3,$4)', [m.id, req.user.id, body, scamFlag(body)]);
   res.json({ ok: true });
 }));
 app.post('/api/matches/:id/reveal', authW, verified, wrap(async (req, res) => {
   const m = await loadMatch(req, res); if (!m) return;
-  const action = req.body.action; // request | approve | decline
+  const action = req.body.action; // request | approve | decline | cancel
+  if (m.closed) return err(res, 400, 'This match has ended');
   if (m.level >= 2) return err(res, 400, 'Everything is already shared');
   const next = m.level + 1;
   const ask = next === 1 ? 'unmask' : 'share numbers';
@@ -603,6 +695,7 @@ app.post('/api/matches/:id/reveal', authW, verified, wrap(async (req, res) => {
   } else if (action === 'cancel') {
     if (m.pending_by !== req.user.id) return err(res, 400, 'Nothing to cancel');
     await q('UPDATE matches SET pending_by=NULL WHERE id=$1', [m.id]);
+    await q('INSERT INTO messages(match_id, body, system) VALUES($1,$2,true)', [m.id, `${req.user.name} took back the request to ${ask}.`]);
   } else return err(res, 400, 'Unknown action');
   const { rows: mm } = await q('SELECT * FROM matches WHERE id=$1', [m.id]);
   res.json(await matchView(mm[0], req.user));
@@ -614,7 +707,7 @@ app.post('/api/matches/:id/game', authW, verified, wrap(async (req, res) => {
     const st = (Array.isArray(req.body.statements) ? req.body.statements : []).map((s) => clean(s, 120));
     const lie = parseInt(req.body.lie, 10);
     if (st.length !== 3 || st.some((s) => !s) || !(lie >= 0 && lie <= 2)) return err(res, 400, 'Write 3 statements and mark the lie');
-    if (m.level < 2 && st.some((s) => CONTACT_RE.test(s))) return err(res, 400, 'Numbers and handles unlock when you both choose to share them.');
+    if (m.level < 2 && st.some((x) => hasContact(x))) return err(res, 400, 'Numbers and handles unlock when you both choose to share them.');
     await q("INSERT INTO messages(match_id, sender_id, body, kind, meta) VALUES($1,$2,$3,'ttl',$4)", [m.id, req.user.id, '2 truths, 1 lie', { by: req.user.id, st, lie, guess: null }]);
   } else {
     const { rows } = await q("SELECT meta->>'a' AS a FROM messages WHERE match_id=$1 AND kind='tot'", [m.id]);
@@ -667,6 +760,7 @@ app.post('/api/block/:id', authW, wrap(async (req, res) => {
   res.json({ ok: true });
 }));
 app.post('/api/report/:id', authW, wrap(async (req, res) => {
+  { const w = limited('report:' + req.user.id, 20, 24 * 60 * 60000); if (w) return tooMany(res, w); }
   await q('INSERT INTO reports(reporter, reported, reason) VALUES($1,$2,$3)', [req.user.id, req.params.id, clean(req.body.reason, 500)]);
   await q('INSERT INTO blocks VALUES($1,$2) ON CONFLICT DO NOTHING', [req.user.id, req.params.id]);
   const m = await matchBetween(req.user.id, parseInt(req.params.id, 10));
@@ -679,6 +773,7 @@ app.delete('/api/me', authW, wrap(async (req, res) => {
   res.json({ ok: true });
 }));
 app.post('/api/waitlist', wrap(async (req, res) => {
+  { const w = limited('waitlist:' + req.ip, 10 * IP_SCALE, 60 * 60000); if (w) return tooMany(res, w); }
   const phone = normPhone(req.body.phone);
   if (phone.length !== 10) return err(res, 400, 'Enter a valid 10-digit mobile number');
   await q('INSERT INTO waitlist(phone, city) VALUES($1,$2)', [phone, clean(req.body.city, 40)]);
@@ -692,10 +787,12 @@ async function optionalUser(req) {
   return rows[0] || null;
 }
 app.post('/api/help', wrap(async (req, res) => {
+  { const w = limited('help:' + req.ip, 60 * IP_SCALE, 10 * 60000); if (w) return tooMany(res, w); }
   const u = await optionalUser(req);
   res.json(help.answer(clean(req.body.q, 300), u, LIVE_CITIES));
 }));
 app.post('/api/help/ticket', wrap(async (req, res) => {
+  { const w = limited('ticket:' + req.ip, 10 * IP_SCALE, 60 * 60000); if (w) return tooMany(res, w); }
   const u = await optionalUser(req);
   const message = clean(req.body.message, 1000);
   if (message.length < 5) return err(res, 400, 'Tell us a little more');
@@ -712,7 +809,7 @@ function admin(req, res, next) {
   next();
 }
 app.get('/api/admin/pending', admin, wrap(async (req, res) => {
-  const { rows } = await q(`SELECT u.id, u.name, u.gender, u.dob, u.city, u.phone, u.mode, v.id_type, v.submitted_at
+  const { rows } = await q(`SELECT u.id, u.name, u.gender, u.dob, u.city, u.phone, u.mode, v.id_type, v.id_last4, v.submitted_at
     FROM users u JOIN verifications v ON v.user_id=u.id WHERE u.status='pending' ORDER BY v.submitted_at`);
   const out = [];
   for (const r of rows) out.push({ ...r, age: ageOf(r.dob), photos: await photoIds(r.id) });
@@ -742,10 +839,10 @@ app.get('/api/admin/verification/:uid/:kind', admin, wrap(async (req, res) => {
   res.set('Content-Type', 'image/jpeg'); res.set('Cache-Control', 'no-store');
   res.send(rows[0].img);
 }));
-app.get('/api/admin/photo/:id', admin, wrap(async (req, res) => {
-  const { rows } = await q('SELECT full_img FROM photos WHERE id=$1', [req.params.id]);
+app.get('/api/admin/photo/:token', admin, wrap(async (req, res) => {
+  const { rows } = await q('SELECT full_img FROM photos WHERE token=$1', [String(req.params.token)]);
   if (!rows[0]) return res.status(404).end();
-  res.set('Content-Type', 'image/jpeg'); res.send(rows[0].full_img);
+  res.set('Content-Type', 'image/jpeg'); res.set('Cache-Control', 'no-store'); res.send(rows[0].full_img);
 }));
 app.post('/api/admin/decide/:uid', admin, wrap(async (req, res) => {
   const approve = req.body.approve === true;

@@ -34,7 +34,7 @@ const INTENTS = [
   { k: ['scam', 'money', 'upi', 'crypto', 'investment', 'otp', 'loan'], a: () =>
     'Never send money, OTPs or “investment” deposits to someone you met online — even if the story sounds real. PAUSE flags messages that ask for money, crypto or OTPs. Report them from the chat menu.' },
   { k: ['screenshot', 'screen shot', 'leak', 'save photo'], a: () =>
-    'Photos you see are watermarked with your account code, so a leaked screenshot can be traced. The Android app will block screenshots completely.' },
+    'Photos you see are watermarked with your account code, so a leaked screenshot can be traced back to the account that took it. A website can’t block screenshots, so that’s how we discourage them.' },
   { k: ['number', 'phone number', 'contact', 'instagram', 'whatsapp', 'share number'], a: () =>
     'Numbers and social handles stay hidden. When you’re both ready, either of you taps Share numbers and the other accepts. Until then, numbers and handles can’t be sent in chat.' },
   { k: ['pause mode', 'take a pause', 'hide profile', 'break', 'invisible', 'snooze'], a: () =>

@@ -113,6 +113,19 @@ function openSheet(html) {
   return sh;
 }
 function closeSheet() { document.querySelectorAll('.sheet,.sheet-bg').forEach((e) => e.remove()); }
+// In-app replacement for confirm()/prompt(). Resolves false on cancel, true (or the typed text) on OK.
+function dialog({ title, body = '', ok = 'OK', cancel = 'Cancel', danger = false, input = null }) {
+  return new Promise((resolve) => {
+    const sh = openSheet(`<h2 style="margin:4px 0 8px;font-size:24px">${esc(title)}</h2>${body ? `<p class="hint" style="font-size:15px;margin:0 0 16px">${esc(body)}</p>` : ''}
+      ${input ? `<div class="field"><label for="dlgin" class="sr">${esc(input)}</label><textarea id="dlgin" placeholder="${esc(input)}" maxlength="500"></textarea></div>` : ''}
+      <div style="display:flex;gap:10px"><button class="btn ghost" style="flex:1" id="dlgno" type="button">${esc(cancel)}</button><button class="btn${danger ? ' danger' : ''}" style="flex:1" id="dlgok" type="button">${esc(ok)}</button></div>`);
+    const done = (v) => { closeSheet(); resolve(v); };
+    document.querySelector('.sheet-bg').onclick = () => done(false);
+    sh.querySelector('#dlgno').onclick = () => done(false);
+    sh.querySelector('#dlgok').onclick = () => done(input ? sh.querySelector('#dlgin').value.trim() : true);
+    (input ? sh.querySelector('#dlgin') : sh.querySelector('#dlgok')).focus();
+  });
+}
 
 // ---------- routing ----------
 async function route() {
@@ -301,12 +314,12 @@ function verifyView() {
   }
   render(`<main class="screen">
     <div class="top"><h1 style="font-size:32px">Verify it’s you</h1></div>
-    <p class="hint" style="font-size:15px;margin-top:-6px">Step 2 of 2. Every member goes through the same check, which is why there are no fake profiles on PAUSE.</p>
+    <p class="hint" style="font-size:15px;margin-top:-6px">Step 2 of 2. Every member goes through the same check, so the people you meet are who they say they are.</p>
     ${s === 'rejected' ? `<div class="note" style="margin-bottom:16px">${I('alert')}<span>Your last check didn’t pass${ME.reject_reason ? ': ' + esc(ME.reject_reason) : ''}. Please try again with clearer photos.</span></div>` : ''}
     <form id="vf">
       <div class="field"><label for="idt">ID type</label><select id="idt"><option>Aadhaar</option><option>PAN</option><option>Driving licence</option><option>Voter ID</option><option>Passport</option></select></div>
-      <div class="field"><label for="idn">ID number</label><input id="idn" autocomplete="off" required minlength="6"><span class="hint">Stored only as a one-way code, so one ID can’t open two accounts. Never shown to anyone.</span></div>
-      <div class="field"><label for="idi">Photo of your ID (front)</label><input id="idi" type="file" accept="image/*" required></div>
+      <div class="field"><label for="idn">ID number</label><input id="idn" autocomplete="off" required minlength="6"><span class="hint" id="idh">12 digits. We keep only a one-way code so one ID can’t open two accounts, plus the last 4 digits so our reviewer can match it to your photo. The full number is never stored or shown.</span></div>
+      <div class="field"><label for="idi">Photo of your ID (front)</label><input id="idi" type="file" accept="image/*" required><span class="hint" id="idph">For Aadhaar, upload a masked Aadhaar: only the last 4 digits visible. Download it free from the UIDAI website (choose “masked Aadhaar”), or cover the first 8 digits yourself.</span></div>
       <div class="field"><label for="sf">A selfie, facing the camera in good light</label><input id="sf" type="file" accept="image/*" capture="user" required></div>
       <div class="note" style="margin-bottom:16px">${I('lock')}<span>A person compares your selfie with your ID and photos. Both images are deleted as soon as we decide.</span></div>
       <div class="err" id="err" role="alert"></div>
@@ -314,6 +327,15 @@ function verifyView() {
     </form>
     <p style="text-align:center;margin-top:16px"><a href="#profile">Edit profile</a></p>
   </main>`);
+  const ID_HINTS = {
+    Aadhaar: ['12 digits.', 'For Aadhaar, upload a masked Aadhaar: only the last 4 digits visible. Download it free from the UIDAI website (choose “masked Aadhaar”), or cover the first 8 digits yourself.'],
+    PAN: ['Looks like ABCDE1234F.', 'A clear photo of the front of your PAN card.'],
+    'Driving licence': ['Looks like MH1420110012345.', 'A clear photo of the front of your driving licence.'],
+    'Voter ID': ['Looks like ABC1234567.', 'A clear photo of the front of your Voter ID.'],
+    Passport: ['Looks like A1234567.', 'A clear photo of the page with your photo.']
+  };
+  const keepNote = ' We keep only a one-way code so one ID can’t open two accounts, plus the last 4 characters so our reviewer can match it to your photo. The full number is never stored or shown.';
+  el('idt').onchange = () => { const h = ID_HINTS[el('idt').value]; el('idh').textContent = h[0] + keepNote; el('idph').textContent = h[1]; };
   el('vf').onsubmit = async (e) => {
     e.preventDefault();
     const btn = el('vb'); btn.disabled = true; btn.textContent = 'Uploading…';
@@ -416,8 +438,8 @@ async function picksView() {
   const show = () => {
     const p = picks[i];
     if (!p) {
-      return screen(`<div class="empty">${EMOBJ('moon')}<h2>That’s everyone for today</h2>
-        <p class="hint">PAUSE shows a few verified, compatible people each day instead of an endless stack. New picks arrive tomorrow, or widen your age range to see more now.</p>
+      return screen(`<div class="empty">${EMOBJ('moon')}<h2>You’ve seen everyone for now</h2>
+        <p class="hint">That’s everyone who fits your category, city and age range right now. New members are verified every day, so check back soon, or widen your preferences to see more.</p>
         <a class="btn ghost" href="#profile" style="margin-top:12px">Adjust preferences</a></div>`);
     }
     screen(`<div class="counter">${i + 1} of ${picks.length}</div>
@@ -624,8 +646,12 @@ async function chatView(id) {
   try { data = await api('/matches/' + id); } catch (x) { toast(x.message); location.hash = 'chats'; return; }
   let lastLevel = data.level;
   const sig = (d) => JSON.stringify([d.level, d.pending_by, d.closed, d.messages.length, d.messages.map((m) => (m.meta ? JSON.stringify(m.meta) : '')).join('|')]);
+  let firstDraw = true;
   const draw = (d) => {
     const o = d.other;
+    const prev = el('msg'), hadFocus = prev && document.activeElement === prev;
+    const keep = prev ? { v: prev.value, a: prev.selectionStart, b: prev.selectionEnd } : null;
+    const nearBottom = firstDraw || window.innerHeight + window.scrollY >= document.body.scrollHeight - 160;
     const msgs = d.messages.map((m) => {
       if (m.system) return `<div class="m sys">${esc(m.body)}</div>`;
       if (m.kind === 'tot' || m.kind === 'ttl') return gameHtml(m, d);
@@ -658,7 +684,10 @@ async function chatView(id) {
       <div class="msgs" id="msgs">${msgs}${d.closed ? '<div class="m sys">This chat is closed.</div>' : ''}</div>
       ${d.closed ? '' : `<div class="dock"><div>${reveal}<form class="composer" id="cf"><button type="button" class="ib" id="gbtn" aria-label="Play a game">${I('dice')}</button><label for="msg" class="sr">Message</label><input id="msg" autocomplete="off" placeholder="Message ${esc(o.name)}" maxlength="1000"><button class="ib send" aria-label="Send">${I('send')}</button></form></div></div>`}
     </div>`, true);
-    window.scrollTo(0, document.body.scrollHeight);
+    const input = el('msg');
+    if (input && keep) { input.value = keep.v; if (hadFocus) { input.focus({ preventScroll: true }); try { input.setSelectionRange(keep.a, keep.b); } catch (e) { /* ignore */ } } }
+    if (nearBottom) window.scrollTo(0, document.body.scrollHeight);
+    firstDraw = false;
     document.querySelectorAll('[data-r]').forEach((b) => b.onclick = async () => {
       try { await api(`/matches/${id}/reveal`, { method: 'POST', body: { action: b.dataset.r } }); refresh(); } catch (x) { toast(x.message); }
     });
@@ -671,7 +700,7 @@ async function chatView(id) {
       const send = (confirmIt) => api(`/matches/${id}/messages`, { method: 'POST', body: { body: v, confirm: confirmIt } });
       try { await send(false); el('msg').value = ''; refresh(); }
       catch (x) {
-        if (x.data && x.data.nudge) { if (confirm(x.message)) { try { await send(true); el('msg').value = ''; refresh(); } catch (y) { toast(y.message); } } }
+        if (x.data && x.data.nudge) { if (await dialog({ title: 'Send this?', body: x.message, ok: 'Send anyway', cancel: 'Edit message' })) { try { await send(true); el('msg').value = ''; refresh(); } catch (y) { toast(y.message); } } }
         else toast(x.message);
       }
     };
@@ -683,10 +712,11 @@ async function chatView(id) {
       menu.onclick = async (e) => {
         const b = e.target.closest('button'); if (!b) return;
         const a = b.dataset.a;
-        if (a === 'date') { location.hash = 'safety'; return; }
-        if (a === 'close' && confirm('End this match? The chat closes and one of your five match slots frees up.')) { await api(`/matches/${id}/close`, { method: 'POST' }); location.hash = 'chats'; }
-        if (a === 'report') { const reason = prompt('What happened? A member of our team reviews every report.'); if (reason !== null) { await api('/report/' + o.id, { method: 'POST', body: { reason } }); toast('Reported and blocked'); location.hash = 'chats'; } }
-        if (a === 'block' && confirm('Block ' + o.name + '?')) { await api('/block/' + o.id, { method: 'POST' }); location.hash = 'chats'; }
+        menu.remove();
+        if (a === 'date') { sessionStorage.setItem('back', '#chat/' + id); location.hash = 'safety'; return; }
+        if (a === 'close' && await dialog({ title: 'End this match?', body: 'The chat closes and one of your five match slots frees up. ' + o.name + ' sees a short goodbye note.', ok: 'End match', danger: true })) { await api(`/matches/${id}/close`, { method: 'POST' }); location.hash = 'chats'; }
+        if (a === 'report') { const reason = await dialog({ title: 'Report ' + o.name, body: 'A member of our team reviews every report. Reporting also blocks them.', input: 'What happened?', ok: 'Report and block', danger: true }); if (reason !== false) { await api('/report/' + o.id, { method: 'POST', body: { reason } }); toast('Reported and blocked'); location.hash = 'chats'; } }
+        if (a === 'block' && await dialog({ title: 'Block ' + o.name + '?', body: 'You won’t see each other again and this chat ends.', ok: 'Block', danger: true })) { await api('/block/' + o.id, { method: 'POST' }); location.hash = 'chats'; }
       };
     };
     if (d.level > lastLevel && d.level === 1) unmaskFx(o);
@@ -702,7 +732,7 @@ async function chatView(id) {
   };
   draw(data);
   pollTimer = setInterval(async () => {
-    if (document.querySelector('.sheet') || (document.activeElement && document.activeElement.id === 'msg' && document.activeElement.value)) return;
+    if (document.querySelector('.sheet,.menu')) return;
     try { const d = await api('/matches/' + id); const s = sig(d); if (s !== last) { last = s; data = d; draw(d); } } catch (e) { /* ignore */ }
   }, 4000);
 }
@@ -711,7 +741,10 @@ async function chatView(id) {
 function safetyView() {
   const m = ME;
   const info = (icon, title, sub) => `<div class="toggle"><span class="circ">${I(icon)}</span><div class="tx"><b>${title}</b><span>${sub}</span></div></div>`;
+  const back = sessionStorage.getItem('back') || (m.status !== 'verified' ? '#verify' : '');
+  sessionStorage.removeItem('back');
   render(`<main class="screen">
+    ${back ? `<a href="${esc(back)}" class="backlink">${I('back')}Back</a>` : ''}
     <div class="top"><h1>Safety</h1></div>
     ${toggleRow('pz', 'pause', 'Take a pause', 'Hide from picks for a while. Your open chats stay.', m.paused)}
     <h2 class="section-t">Always on</h2>
@@ -759,7 +792,7 @@ function safetyView() {
     else send('');
   };
   el('del').onclick = async () => {
-    if (confirm('Delete your account, photos, chats and data permanently? This can’t be undone. If you only need a break, use Take a pause instead.')) { await api('/me', { method: 'DELETE' }); location.href = '/'; }
+    if (await dialog({ title: 'Delete your account?', body: 'Your profile, photos, chats and data are deleted permanently. This can’t be undone. If you only need a break, use Take a pause instead.', ok: 'Delete everything', danger: true })) { await api('/me', { method: 'DELETE' }); location.href = '/'; }
   };
 }
 

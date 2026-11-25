@@ -16,6 +16,7 @@ main{max-width:1000px;margin:0 auto;padding:24px}
 h1,h2{font-weight:500}
 .req{padding:16px;margin-bottom:16px;display:flex;flex-direction:column;gap:12px}
 .imgs{display:flex;gap:10px;overflow-x:auto}
+.idchk{margin:6px 0 4px;font-size:13px;color:var(--muted)}.idchk b{color:var(--heading);letter-spacing:.08em}
 .imgs figure{margin:0;text-align:center;font-size:12px;color:var(--muted)}
 .imgs img{height:220px;border-radius:12px;display:block;margin-bottom:4px}
 </style>
@@ -53,6 +54,7 @@ async function load() {
     ${pending.length ? '' : '<p class="hint">Nobody waiting.</p>'}
     ${pending.map((u) => `<div class="card req" data-uid="${u.id}">
       <div><strong>${esc(u.name)}, ${u.age}</strong> · ${esc(u.gender)} · ${esc(u.city)} · ${esc(u.mode)} · ${esc(u.phone)} · ${esc(u.id_type)}</div>
+      <div class="idchk">Typed number ends in <b>${esc(u.id_last4 || '????')}</b>. Check it matches the ID photo before approving.</div>
       <div class="imgs"><figure><img data-src="/verification/${u.id}/id" alt="ID">ID</figure><figure><img data-src="/verification/${u.id}/selfie" alt="Selfie">Selfie</figure>
       ${u.photos.map((p) => `<figure><img data-src="/photo/${p.id}" alt="Profile photo">Profile</figure>`).join('')}</div>
       <p class="hint" style="margin:0">Check: selfie matches ID and profile photos; ID name and date of birth look consistent with the profile; age 18+.</p>
