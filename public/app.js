@@ -39,7 +39,12 @@ const P = {
   check: '<path d="M5 12.5l4.5 4.5L19 7"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
-  chev: '<path d="M9 6l6 6-6 6"/>'
+  chev: '<path d="M9 6l6 6-6 6"/>',
+  music: '<path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/>',
+  play: '<rect x="3" y="5" width="18" height="13" rx="2"/><path d="M10.5 9v5l4-2.5z"/><path d="M8 21h8"/>',
+  share: '<circle cx="18" cy="5.5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="18.5" r="2.5"/><path d="M8.2 10.8l7.6-4.1M8.2 13.2l7.6 4.1"/>',
+  home: '<path d="M4 11l8-6.5 8 6.5"/><path d="M6 9.5V20h12V9.5"/><path d="M10 20v-5h4v5"/>',
+  map: '<path d="M9 4.5L3.5 6.5v13l5.5-2 6 2 5.5-2v-13l-5.5 2z"/><path d="M9 4.5v13M15 6.5v13"/>'
 };
 const I = (name, extra = '') => `<svg class="ic ${extra}" viewBox="0 0 24 24" aria-hidden="true">${P[name] || ''}</svg>`;
 const OBJ = (name) => (window.PauseObj ? PauseObj.svg(name) : '');
@@ -55,7 +60,7 @@ const GENDERS = { woman: 'Woman', man: 'Man', nonbinary: 'Non-binary' };
 const SEEKING = { woman: 'Women', man: 'Men', nonbinary: 'Non-binary people' };
 const STEPS = ['Masked', 'Unmasked', 'Numbers shared'];
 let ME = null;
-let CFG = { brand: 'PAUSE', live_cities: ['Bangalore'], focus: 5, religions: [], diets: [], nakshatras: [], rashis: [] };
+let CFG = { brand: 'PAUSE', live_cities: ['Bangalore'], focus: 5, religions: [], diets: [], nakshatras: [], rashis: [], intents: {}, platforms: ['Netflix', 'Prime Video', 'JioHotstar', 'YouTube', 'Other'], goodbyes: [], quiet_days: 5, extend_days: 2 };
 const cfgReady = fetch('/api/config').then((r) => r.json()).then((c) => { CFG = { ...CFG, ...c }; }).catch(() => {});
 let pollTimer = null, tickTimer = null;
 
@@ -98,7 +103,7 @@ const fmtHeight = (cm) => { if (!cm) return ''; let ft = Math.floor(cm / 30.48),
 const initial = (n) => esc(String(n || '?').trim().charAt(0).toUpperCase());
 function navbar(active, badge = 0) {
   const item = (href, label, ic, b) => `<a href="#${href}" ${active === href ? 'aria-current="page"' : ''}>${I(ic)}${label}${b ? `<span class="badge">${b}</span>` : ''}</a>`;
-  return `<nav class="navbar" aria-label="Main"><div>${item('picks', 'Picks', 'heart')}${item('explore', 'Explore', 'compass')}${item('chats', 'Chats', 'chat', badge)}${item('safety', 'Safety', 'shield')}${item('profile', 'Profile', 'user')}<a href="#" data-ask role="button">${I('help')}Help</a></div></nav>`;
+  return `<nav class="navbar" aria-label="Main"><div>${item('picks', 'Picks', 'heart')}${item('explore', 'Explore', 'compass')}${item('plans', 'Plans', 'calendar')}${item('chats', 'Chats', 'chat', badge)}${item('profile', 'Profile', 'user')}</div></nav>`;
 }
 function render(html, dark = false) {
   document.body.style.background = dark ? 'var(--night)' : '';
@@ -146,7 +151,9 @@ async function route() {
   if (view === 'kundli') return kundliView();
   if (ME.status !== 'verified' || view === 'verify') return verifyView();
   refreshLocation();
+  if (view === 'explore' && arg === 'spots') { location.hash = 'plans/map'; return; }
   if (view === 'explore') return exploreView(arg);
+  if (view === 'plans') return plansView(arg);
   if (view === 'chats') return chatsView();
   if (view === 'chat' && arg) return chatView(arg);
   if (view === 'drop') return dropView();
@@ -240,7 +247,7 @@ function swipeable(card, { left, right, rightBlocked }) {
   const end = () => {
     if (x0 === null) return; x0 = null;
     if (!dragging) return;
-    if (dx > 110 && !rightBlocked) { card.style.transition = 'transform .28s ease-out'; card.style.transform = 'translateX(140%) rotate(18deg)'; right(); }
+    if (dx > 110 && !rightBlocked) { reset(); right(); } // the like sheet decides whether the card leaves
     else if (dx < -110) { card.style.transition = 'transform .28s ease-out'; card.style.transform = 'translateX(-140%) rotate(-18deg)'; left(); }
     else { if (dx > 110 && rightBlocked) toast('End a match to like someone new'); reset(); }
   };
@@ -269,6 +276,7 @@ function profileView(onboarding) {
       <div style="flex:1"><div style="font-weight:600;display:flex;gap:8px;align-items:center">${esc(m.name || 'Your profile')} ${m.status === 'verified' ? `<span class="vtick">${I('check')}${m.id_verified ? 'ID verified' : 'Verified'}</span>` : ''}</div>
       <div class="hint">${onboarding ? 'Step 1 of 2. Next, link your Instagram or LinkedIn.' : `Profile ${pct}% complete`}</div><div class="bar"><i style="width:${pct}%"></i></div></div></div>
     ${!onboarding && m.status === 'verified' && !m.id_verified ? `<a class="idcta" href="#verify">${I(m.id_pending ? 'clock' : 'shield')}<span><b>${m.id_pending ? 'ID check in progress' : 'Get the ID-verified badge'}</b>${m.id_pending ? 'Usually within a few hours.' : 'Optional. Takes two minutes.'}</span>${I('chev')}</a>` : ''}
+    ${onboarding ? '' : `<div class="card linkrows"><a href="#safety">${I('shield')}<span><b>Safety</b><small>Take a pause, contact shield, emergency help</small></span>${I('chev')}</a><button type="button" data-ask>${I('help')}<span><b>Help</b><small>Ask a question or talk to our team</small></span>${I('chev')}</button></div>`}
     <form id="pf">
       <div class="field"><span class="flabel">Photos</span><div class="photos">${photoSlots}</div><span class="hint">Add one to four. Everyone who sees them sees a faint watermark with their own account code.</span></div>
       <div class="field"><label for="fname">First name</label><input id="fname" value="${esc(m.name)}" maxlength="40" required autocomplete="given-name"></div>
@@ -447,6 +455,7 @@ function verifyView() {
 function pickCard(p) {
   const photo = p.photos[0] ? `<img src="/api/photo/${p.photos[0].id}" alt="${p.masked ? 'Masked photo' : 'Photo of ' + esc(p.name)}">` : '';
   const badges = [];
+  if (p.liked_you) badges.push(`<span class="ly">${I('heart')}Likes you</span>`);
   if (p.destiny) badges.push(`<span class="d">${I('star')}${p.destiny.pct}% Destiny match</span>`);
   if (p.kundli) badges.push(`<span>${I('kundli')}Kundli ${p.kundli.total} of 36</span>`);
   if (p.zodiac) badges.push(`<span>${esc(p.zodiac.name)}</span>`);
@@ -461,6 +470,7 @@ function pickCard(p) {
         ${badges.length ? `<div class="badges">${badges.join('')}</div>` : ''}</div>
     </div>
     <div class="body">
+      ${likedYouBox(p)}
       ${p.destiny && p.destiny.reasons.length ? `<ul class="reasons" aria-label="Why you match">${p.destiny.reasons.map((r) => `<li>${I('star')}<span>${esc(r)}</span></li>`).join('')}</ul>` : ''}
       ${p.prompt_a ? `<div class="prompt"><small>${esc(p.prompt_q)}</small><p>${esc(p.prompt_a)}</p></div>` : ''}
       ${p.bio ? `<p style="margin:0;font-size:15px;line-height:1.6;color:#3A5560">${esc(p.bio)}</p>` : ''}
@@ -534,7 +544,10 @@ async function picksView() {
     el('locon').onclick = async () => { try { await turnOnLocation(); toast('Location on. Nearby people come first.'); picksView(); } catch (x) { toast(x.message); } };
     el('locno').onclick = () => { try { localStorage.setItem('locAsk', '1'); } catch (e) { /* ignore */ } locAsk = false; el('loccard').remove(); };
   };
-  const fullBar = full ? `<div class="fullbar">${I('pause')}<span><b>You have five matches.</b> Keep exploring. To like someone new, end one of your matches.</span><a href="#chats">Chats</a></div>` : '';
+  if (data.server_now) setSkew(data.server_now);
+  const ex = data.expiring;
+  const fullBar = (ex ? `<a class="expbar" href="#chat/${ex.id}">${ring(left(ex.deadline) / 864e5, 'dark')}<span><b>Your match with ${esc(ex.name)} fades in ${leftLabel(left(ex.deadline))}</b>Send a message, or tap Need more time in the chat.</span>${I('chev')}</a>` : '')
+    + (full ? `<div class="fullbar">${I('pause')}<span><b>You have five matches.</b> Keep exploring. To like someone new, end one of your matches.</span><a href="#chats">Chats</a></div>` : '');
   const picks = data.picks;
   let i = 0;
   const show = () => {
@@ -561,12 +574,19 @@ async function picksView() {
       return;
     }
     const card = el('card');
+    let busy = false;
     const act = async (kind) => {
-      card.classList.add(kind === 'like' ? 'out-right' : 'out-left');
-      try {
-        const r = await api('/like/' + p.id, { method: 'POST', body: { kind } });
-        if (r.matched) { data.active++; celebrate(p, r.match_id, r.masked); }
-      } catch (x) { toast(x.message); if (x.data && x.data.focus_full) { setTimeout(picksView, 600); return; } }
+      if (busy) return; busy = true;
+      if (kind === 'like') {
+        const res = await likeSheet(p);
+        if (!res.sent) { busy = false; if (res.full) { toast(res.error); setTimeout(picksView, 600); } return; }
+        card.classList.add('out-right');
+        if (res.r.matched) { data.active++; celebrate(p, res.r.match_id, res.r.masked); }
+        setTimeout(() => { i++; show(); }, 280);
+        return;
+      }
+      card.classList.add('out-left');
+      try { await api('/like/' + p.id, { method: 'POST', body: { kind } }); } catch (x) { toast(x.message); }
       setTimeout(() => { i++; show(); }, 280);
     };
     el('pass').onclick = () => act('pass');
@@ -582,10 +602,8 @@ async function picksView() {
 }
 
 // ---------- explore ----------
-const exploreHead = (tab) => `<div class="top"><h1>Explore</h1>${catTag(ME.mode, '#profile')}</div>
-  <div class="seg" role="tablist"><a href="#explore" role="tab" aria-selected="${tab === 'people'}">People</a><a href="#explore/spots" role="tab" aria-selected="${tab === 'spots'}">Date spots</a></div>`;
-async function exploreView(arg) {
-  if (arg === 'spots') return spotsView();
+const exploreHead = () => `<div class="top"><h1>Explore</h1>${catTag(ME.mode, '#profile')}</div>`;
+async function exploreView() {
   let view = sessionStorage.getItem('xview') || (ME.located ? 'near' : 'new'), tag = '';
   const load = async () => {
     render(`<main class="screen">${exploreHead('people')}<p class="hint">Loading…</p></main>${navbar('explore')}`);
@@ -599,7 +617,7 @@ async function exploreView(arg) {
       const sub = (view === 'shared' && p.shared.length) ? p.shared.slice(0, 2).join(', ') : p.distance || (p.is_new ? 'New this week' : p.city);
       return `<button class="tile" data-k="${k}" type="button" aria-label="${esc(p.name)}, ${p.age}">
         ${p.photos[0] ? `<img src="/api/photo/${p.photos[0].id}" alt="" loading="lazy">` : `<span class="noimg">${initial(p.name)}</span>`}
-        ${p.masked ? `<span class="tmask">${I('mask')}</span>` : ''}${p.destiny ? `<span class="tdest">${I('star')}${p.destiny.pct}%</span>` : ''}
+        ${p.masked ? `<span class="tmask">${I('mask')}</span>` : ''}${p.destiny ? `<span class="tdest">${I('star')}${p.destiny.pct}%</span>` : p.liked_you ? `<span class="tdest tly">${I('heart')}Likes you</span>` : ''}
         <span class="tcap"><b>${esc(p.name)}, ${p.age}</b><small>${esc(sub)}</small></span></button>`;
     };
     render(`<main class="screen fade-in">${exploreHead('people')}
@@ -621,8 +639,11 @@ async function exploreView(arg) {
       const gone = () => { closeSheet(); t.remove(); };
       sh.querySelector('#xpass').onclick = async () => { if (d.focus_full) return closeSheet(); try { await api('/like/' + p.id, { method: 'POST', body: { kind: 'pass' } }); gone(); } catch (x) { toast(x.message); } };
       sh.querySelector('#xlike').onclick = async () => {
-        try { const r = await api('/like/' + p.id, { method: 'POST', body: { kind: 'like' } }); gone(); if (r.matched) celebrate(p, r.match_id, r.masked); else toast('Liked. If it’s mutual, you’ll match.'); }
-        catch (x) { toast(x.message); }
+        closeSheet();
+        const res = await likeSheet(p);
+        if (!res.sent) { if (res.full) toast(res.error); return; }
+        t.remove();
+        if (res.r.matched) celebrate(p, res.r.match_id, res.r.masked); else toast('Liked. If it’s mutual, you’ll match.');
       };
     });
   };
@@ -641,15 +662,15 @@ function loadLeaflet() {
 }
 let SPOTS = null;
 async function spotsView() {
-  render(`<main class="screen">${exploreHead('spots')}<p class="hint">Loading the map…</p></main>${navbar('explore')}`);
+  render(`<main class="screen">${plansHead('map')}<p class="hint">Loading the map…</p></main>${navbar('plans')}`);
   try { SPOTS = SPOTS || await api('/spots'); } catch (x) { toast(x.message); return; }
   const kinds = [...new Set(SPOTS.map((s) => s.kind))];
-  render(`<main class="screen fade-in">${exploreHead('spots')}
-    <p class="hint" style="margin:-4px 0 12px">Busy, public places in Bangalore that work well for a first meeting. Share your date plan from Safety before you go.</p>
+  render(`<main class="screen fade-in">${plansHead('map')}
+    <p class="hint" style="margin:-4px 0 12px">Busy, public places in Bangalore that work well for a first meeting. Tap Plan here to suggest one to a match.</p>
     <div class="map" id="map" role="region" aria-label="Map of date spots"></div>
     <div class="chips xtags" style="margin-top:14px"><button type="button" class="chip" data-kind="" aria-pressed="true">All</button>${kinds.map((k) => `<button type="button" class="chip" data-kind="${esc(k)}" aria-pressed="false">${esc(k)}</button>`).join('')}</div>
     <div class="spots" id="spots"></div>
-  </main>${navbar('explore')}`);
+  </main>${navbar('plans')}`);
   let L;
   try { L = await loadLeaflet(); } catch (x) { el('map').innerHTML = `<p class="hint" style="padding:16px">${esc(x.message)}</p>`; }
   let map = null; const pins = {};
@@ -664,8 +685,9 @@ async function spotsView() {
   const list = (kind) => {
     el('spots').innerHTML = SPOTS.filter((s) => !kind || s.kind === kind).map((sp) => `<div class="spot" data-id="${sp.id}">
       <div><b>${esc(sp.name)}</b><small>${esc(sp.kind)}, ${esc(sp.area)}</small><p>${esc(sp.note)}</p></div>
-      <a class="linkbtn" href="https://www.google.com/maps/search/?api=1&query=${sp.lat},${sp.lng}" target="_blank" rel="noopener">Directions</a></div>`).join('');
-    el('spots').querySelectorAll('.spot').forEach((d) => d.onclick = (e) => { if (e.target.closest('a') || !map) return; const sp = SPOTS.find((x) => x.id === d.dataset.id); map.flyTo([sp.lat, sp.lng], 15, { duration: 0.6 }); pins[sp.id].openPopup(); el('map').scrollIntoView({ behavior: 'smooth', block: 'center' }); });
+      <span class="spotacts"><button class="linkbtn" type="button" data-planhere="${sp.id}">Plan here</button><a class="linkbtn" href="https://www.google.com/maps/search/?api=1&query=${sp.lat},${sp.lng}" target="_blank" rel="noopener">Directions</a></span></div>`).join('');
+    el('spots').querySelectorAll('[data-planhere]').forEach((b) => b.onclick = () => { const sp = SPOTS.find((x) => x.id === b.dataset.planhere); planWith({ spot: sp.id, label: sp.name + ', ' + sp.area }); });
+    el('spots').querySelectorAll('.spot').forEach((d) => d.onclick = (e) => { if (e.target.closest('a,button') || !map) return; const sp = SPOTS.find((x) => x.id === d.dataset.id); map.flyTo([sp.lat, sp.lng], 15, { duration: 0.6 }); pins[sp.id].openPopup(); el('map').scrollIntoView({ behavior: 'smooth', block: 'center' }); });
     if (map) { const shown = SPOTS.filter((s) => !kind || s.kind === kind); for (const sp of SPOTS) { const on = shown.includes(sp); if (on && !map.hasLayer(pins[sp.id])) pins[sp.id].addTo(map); if (!on && map.hasLayer(pins[sp.id])) map.removeLayer(pins[sp.id]); } }
   };
   document.querySelectorAll('[data-kind]').forEach((b) => b.onclick = () => { document.querySelectorAll('[data-kind]').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); list(b.dataset.kind); });
@@ -685,8 +707,13 @@ async function dropView() {
   </main>${navbar('picks')}`);
   if (d.acted) return;
   const act = async (kind) => {
-    try { const r = await api('/like/' + p.id, { method: 'POST', body: { kind } }); if (r.matched) { celebrate(p, r.match_id, r.masked); return; } toast(kind === 'like' ? 'Liked. If it’s mutual, a chat opens.' : 'Passed. The next match arrives tomorrow at 9.'); location.hash = 'picks'; }
-    catch (x) { toast(x.message); }
+    try {
+      let r;
+      if (kind === 'like') { const res = await likeSheet(p); if (!res.sent) { if (res.full) toast(res.error); return; } r = res.r; }
+      else r = await api('/like/' + p.id, { method: 'POST', body: { kind } });
+      if (r.matched) { celebrate(p, r.match_id, r.masked); return; }
+      toast(kind === 'like' ? 'Liked. If it’s mutual, a chat opens.' : 'Passed. The next match arrives tomorrow at 9.'); location.hash = 'picks';
+    } catch (x) { toast(x.message); }
   };
   el('pass').onclick = () => act('pass');
   el('like').onclick = () => act('like');
@@ -775,17 +802,26 @@ function kundliView() {
 // ---------- chats ----------
 async function chatsView() {
   render(`<main class="screen"><div class="top"><h1>Chats</h1></div><p class="hint">Loading…</p></main>${navbar('chats')}`);
-  const data = await api('/matches').catch(() => ({ focus: CFG.focus, chats: [] }));
+  const data = await api('/matches').catch(() => ({ focus: CFG.focus, chats: [], faded: [] }));
+  if (data.server_now) setSkew(data.server_now);
   const list = data.chats, F = data.focus;
   const slots = Array.from({ length: F }, (_, k) => { const c = list[k]; return c ? `<i>${c.level >= 1 && c.other.photos[0] ? `<img src="/api/photo/${c.other.photos[0].id}" alt="">` : initial(c.other.name)}</i>` : '<i class="free"></i>'; }).join('');
   const waiting = (m) => m.pending_by && m.pending_by !== ME.id;
+  const faded = data.faded || [];
   render(`<main class="screen fade-in"><div class="top"><h1>Chats</h1>${catTag(ME.mode)}</div>
-    <div class="focus"><div class="slots" aria-hidden="true">${slots}</div><div><b>${list.length} of ${F} matches</b><small>${list.length >= F ? 'New matches are paused. End one to make room.' : 'New matches pause when you reach five.'}</small></div></div>
-    ${list.length ? `<div class="card list" style="overflow:hidden">${list.map((m) => `<a href="#chat/${m.id}">
-      ${m.other.photos[0] ? `<img class="av" src="/api/photo/${m.other.photos[0].id}" alt="">` : `<span class="av">${initial(m.other.name)}</span>`}
+    <div class="focus"><div class="slots" aria-hidden="true">${slots}</div><div><b>${list.length} of ${F} matches</b><small>${list.length >= F ? 'New matches are paused. End one to make room.' : `New matches pause at five. Quiet matches fade after ${CFG.quiet_days} days.`}</small></div></div>
+    ${faded.length ? `<div class="fadednote">${I('clock')}<span>${esc(faded.join(', '))} faded after ${CFG.quiet_days} quiet days. The slot is free again.</span></div>` : ''}
+    ${list.length ? `<div class="card list" style="overflow:hidden">${list.map((m) => {
+      const cs = clockState(m);
+      const av = m.other.photos[0] ? `<img class="av" src="/api/photo/${m.other.photos[0].id}" alt="">` : `<span class="av">${initial(m.other.name)}</span>`;
+      const sub = waiting(m) ? (m.level === 0 ? `${esc(m.other.name)} is ready to unmask` : `${esc(m.other.name)} wants to share numbers`)
+        : cs.show ? `<span class="${cs.urgent ? 'urg' : 'quiet'}">${esc(cs.text)}</span>` : esc(m.last || '');
+      return `<a href="#chat/${m.id}">
+      ${cs.show ? `<span class="ringav ${cs.urgent ? 'urgent' : ''}">${av}${ring(cs.frac)}</span>` : av}
       <div style="flex:1;min-width:0"><div style="font-weight:600;display:flex;align-items:center;gap:8px">${esc(m.other.name)}, ${m.other.age}${waiting(m) ? '<span class="dot" aria-label="Waiting for you"></span>' : ''}</div>
-      <div class="hint" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${waiting(m) ? (m.level === 0 ? `${esc(m.other.name)} is ready to unmask` : `${esc(m.other.name)} wants to share numbers`) : esc(m.last || '')}</div></div>
-      <span class="step s${m.level}">${STEPS[m.level]}</span></a>`).join('')}</div>`
+      <div class="hint" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${sub}</div></div>
+      <span class="step s${m.level}">${STEPS[m.level]}</span></a>`;
+    }).join('')}</div>`
     : `<div class="empty">${EMOBJ('kulhad')}<h2>No matches yet</h2><p class="hint">When someone you like likes you back, they appear here. You can have up to ${F} matches at a time.</p><a class="btn ghost" href="#picks" style="margin-top:12px">See my picks</a></div>`}
   </main>${navbar('chats', list.filter(waiting).length)}`);
 }
@@ -806,15 +842,16 @@ function unmaskFx(o) {
 function gameHtml(m, d) {
   const o = d.other, mt = m.meta || {};
   if (m.kind === 'tot') {
+    const title = esc(mt.title || 'This or that');
     if (mt.done) {
       const mineK = mt.ans[d.me], theirK = Object.entries(mt.ans).find(([k]) => +k !== d.me)[1];
       const lab = (k) => [mineK === k ? 'you' : '', theirK === k ? esc(o.name) : ''].filter(Boolean).join(' and ');
-      return `<div class="game"><h4>This or that</h4><div class="q">${esc(mt.a)} or ${esc(mt.b)}?</div>
+      return `<div class="game"><h4>${title}</h4><div class="q">${esc(mt.a)} or ${esc(mt.b)}?</div>
         <div class="opts"><button disabled class="${mineK === 'a' ? 'pick1' : ''}">${esc(mt.a)}${lab('a') ? `<br><small style="margin:0;font-weight:500">${lab('a')}</small>` : ''}</button><button disabled class="${mineK === 'b' ? 'pick1' : ''}">${esc(mt.b)}${lab('b') ? `<br><small style="margin:0;font-weight:500">${lab('b')}</small>` : ''}</button></div>
         <small>${mineK === theirK ? 'You picked the same.' : 'You picked differently. Make your case.'}</small></div>`;
     }
-    if (mt.mine) return `<div class="game"><h4>This or that</h4><div class="q">${esc(mt.a)} or ${esc(mt.b)}?</div><small>You picked ${esc(mt[mt.mine])}. Answers show once ${esc(o.name)} picks too.</small></div>`;
-    return `<div class="game"><h4>This or that</h4><div class="q">${esc(mt.a)} or ${esc(mt.b)}?</div><div class="opts"><button data-tot="${m.id}" data-c="a">${esc(mt.a)}</button><button data-tot="${m.id}" data-c="b">${esc(mt.b)}</button></div><small>${esc(o.name)} won’t see your pick until they choose too.</small></div>`;
+    if (mt.mine) return `<div class="game"><h4>${title}</h4><div class="q">${esc(mt.a)} or ${esc(mt.b)}?</div><small>You picked ${esc(mt[mt.mine])}. Answers show once ${esc(o.name)} picks too.</small></div>`;
+    return `<div class="game"><h4>${title}</h4><div class="q">${esc(mt.a)} or ${esc(mt.b)}?</div><div class="opts"><button data-tot="${m.id}" data-c="a">${esc(mt.a)}</button><button data-tot="${m.id}" data-c="b">${esc(mt.b)}</button></div><small>${esc(o.name)} won’t see your pick until they choose too.</small></div>`;
   }
   if (m.kind === 'ttl') {
     const mineGame = mt.by === d.me;
@@ -825,6 +862,63 @@ function gameHtml(m, d) {
     const rows = mt.st.map((s, k) => `<div class="${k === mt.lie ? 'lie' : ''}">${esc(s)}${k === mt.lie ? '<br><small style="margin:4px 0 0;color:inherit">The lie</small>' : ''}${guessed && k === mt.guess && k !== mt.lie ? `<br><small style="margin:4px 0 0">${mineGame ? esc(o.name) + '’s guess' : 'Your guess'}</small>` : ''}</div>`).join('');
     return `<div class="game"><h4>Two truths, one lie, from ${mineGame ? 'you' : esc(o.name)}</h4><div class="st">${rows}</div><small>${guessed ? (mt.guess === mt.lie ? 'Spotted.' : 'Fooled.') : `Waiting for ${esc(o.name)} to guess.`}</small></div>`;
   }
+  if (m.kind === 'qa') {
+    if (mt.done) {
+      const theirs = Object.entries(mt.ans).find(([k]) => +k !== d.me);
+      return `<div class="game"><h4>Question for both</h4><div class="q">${esc(mt.q)}</div><div class="st"><div><small style="margin:0 0 4px">You</small>${esc(mt.ans[d.me])}</div><div><small style="margin:0 0 4px">${esc(o.name)}</small>${esc(theirs ? theirs[1] : '')}</div></div></div>`;
+    }
+    if (mt.mine) return `<div class="game"><h4>Question for both</h4><div class="q">${esc(mt.q)}</div><div class="st"><div><small style="margin:0 0 4px">Your answer</small>${esc(mt.mine)}</div></div><small>${esc(o.name)}’s answer opens when they reply.</small></div>`;
+    return `<div class="game"><h4>Question for both</h4><div class="q">${esc(mt.q)}</div><button class="lightbtn" style="width:100%" data-qa="${m.id}">Answer</button><small>${esc(o.name)} sees your answer only after they answer too.</small></div>`;
+  }
+  if (m.kind === 'song') {
+    const mine = mt.by === d.me, qy = encodeURIComponent(mt.title + ' ' + (mt.artist || ''));
+    return `<div class="game"><h4>Song swap from ${mine ? 'you' : esc(o.name)}</h4><div class="q">${esc(mt.title)}</div>${mt.artist ? `<small class="plat">${esc(mt.artist)}</small>` : ''}${mt.why ? `<p class="why">${esc(mt.why)}</p>` : ''}
+      <div class="opts links"><a href="https://www.youtube.com/results?search_query=${qy}" target="_blank" rel="noopener">YouTube</a><a href="https://open.spotify.com/search/${qy}" target="_blank" rel="noopener">Spotify</a></div>
+      ${mine ? '' : '<button class="darkbtn" data-songback="1" style="margin-top:10px;width:100%">Swap one back</button>'}</div>`;
+  }
+  if (m.kind === 'watch') {
+    const mine = mt.by === d.me, inMe = !!(mt.in || {})[d.me], inThem = Object.keys(mt.in || {}).some((k) => +k !== d.me);
+    return `<div class="game watch"><h4>Watch together${mine ? '' : ', from ' + esc(o.name)}</h4><div class="q">${esc(mt.title)}</div><small class="plat">On ${esc(mt.platform)}, ${esc(fmtWhen(mt.at))}</small>
+      <div class="wcount" data-watch-at="${esc(mt.at)}">${watchLabel(mt.at)}</div>
+      ${!inMe ? `<button class="lightbtn" style="width:100%" data-wjoin="${m.id}">I’m in</button>` : `<small>${inThem ? 'You’re both in. When the countdown hits zero, press play on your own screen.' : `Waiting for ${esc(o.name)} to join.`}</small>`}</div>`;
+  }
+  if (m.kind === 'plan') return planMsgHtml(m, d);
+  if (m.kind === 'likenote') {
+    const mine = m.sender_id === d.me;
+    const what = mt.label ? (mine ? `You paused on ${esc(o.name)}’s ${esc(mt.label)}` : `${esc(o.name)} paused on your ${esc(mt.label)}`) : (mine ? `You liked ${esc(o.name)}` : `${esc(o.name)} liked you`);
+    return `<div class="lnmsg ${mine ? 'me' : 'them'}"><small>${I('heart')}${what}</small>${mt.text ? `<q>${esc(mt.text)}</q>` : ''}${mt.photo ? `<img src="/api/photo/${esc(mt.photo)}?l=${d.level}" alt="">` : ''}${m.body ? `<p>${esc(m.body)}</p>` : ''}${mt.intent_label ? `<span class="lyint">Up for: ${esc(mt.intent_label)}</span>` : ''}</div>`;
+  }
+  return '';
+}
+function planMsgHtml(m, d) {
+  const o = d.other, p = (d.plans || []).find((x) => x.id === (m.meta || {}).plan_id);
+  if (!p) return '';
+  const who = p.by_me ? 'You' : esc(o.name);
+  const place = `${p.what ? `<small class="plat">${esc(p.what)}</small>` : ''}<div class="q">${esc(p.place)}</div>${p.area ? `<small class="plat">${esc(p.area)}</small>` : ''}`;
+  if (p.status === 'proposed') {
+    const open = p.slots.filter((t) => new Date(t).getTime() > nowS());
+    if (p.by_me) return `<div class="game plan"><h4>You suggested a date</h4>${place}<div class="st">${p.slots.map((t) => `<div>${esc(fmtWhen(t))}</div>`).join('')}</div><small>Waiting for ${esc(o.name)} to pick a time.</small><button class="darkbtn" data-pact="cancel" data-pid="${p.id}" style="margin-top:10px;width:100%">Cancel suggestion</button></div>`;
+    return `<div class="game plan"><h4>${who} suggested a date</h4>${place}<div class="st">${p.slots.map((t, k) => new Date(t).getTime() > nowS() ? `<button data-pact="accept" data-pid="${p.id}" data-slot="${k}">${esc(fmtWhen(t))}</button>` : `<div class="past">${esc(fmtWhen(t))}, passed</div>`).join('')}</div>
+      <small>${open.length ? 'Tap a time to set the date.' : 'These times have passed.'}</small>
+      <div style="display:flex;gap:8px;margin-top:10px"><button class="darkbtn" style="flex:1" data-pother="${p.id}">Other times</button><button class="darkbtn" style="flex:1" data-pact="decline" data-pid="${p.id}">Not this time</button></div></div>`;
+  }
+  if (p.status === 'confirmed') return `<div class="game plan set"><h4>Date set</h4>${place}<div class="when">${I('calendar')}${esc(fmtWhen(p.chosen))}</div><small>Directions, calendar and sharing are pinned at the top of this chat.</small></div>`;
+  return `<div class="game plan off"><h4>${who} suggested a date</h4>${place}<small>${p.status === 'declined' ? 'Not this time.' : 'Cancelled.'}</small></div>`;
+}
+// The pinned bar: a set date's tools before it, and a private check-in after it.
+function pinnedPlan(d) {
+  const p = [...(d.plans || [])].reverse().find((x) => x.status === 'confirmed' && new Date(x.chosen).getTime() > nowS() - 7 * 864e5);
+  if (!p) return '';
+  const t = new Date(p.chosen).getTime(), n = nowS();
+  if (n < t + 2 * 36e5) {
+    return `<div class="pinbar"><div class="ph1">${I('calendar')}<span><b>${esc(fmtWhen(p.chosen))}</b>${esc(p.place)}${p.area ? ', ' + esc(p.area) : ''}</span></div>
+      <div class="pacts"><a class="darkbtn sm" href="${esc(dirUrl(p))}" target="_blank" rel="noopener">${I('pin')}Directions</a><button class="darkbtn sm" data-ics="${p.id}">${I('calendar')}Calendar</button><button class="darkbtn sm" data-sharep="${p.id}">${I('share')}Tell a friend</button>${n >= t - 36e5 && !p.my_safe ? `<button class="lightbtn sm" data-safe="${p.id}">${I('home')}Home safe</button>` : ''}</div>
+      ${n < t - 36e5 ? `<button class="linkbtn pcancel" data-pact="cancel" data-pid="${p.id}">Cancel this date</button>` : ''}</div>`;
+  }
+  if (!p.my_feedback) {
+    return `<div class="pinbar"><div class="ph1">${I('star')}<span><b>How was your date?</b>Only you see this. It helps us keep PAUSE safe.</span></div>
+      <div class="pacts"><button class="lightbtn sm" data-fb="again" data-pid="${p.id}">See again</button><button class="darkbtn sm" data-fb="not" data-pid="${p.id}">Not for me</button><button class="darkbtn sm" data-fb="report" data-pid="${p.id}">${I('flag')}Report</button></div></div>`;
+  }
   return '';
 }
 const FLAG_TEXT = {
@@ -833,27 +927,134 @@ const FLAG_TEXT = {
   otp: 'Never share an OTP or verification code with anyone, including a match.',
   link: 'Be careful with links from people you haven’t met. Don’t log in or pay through them.'
 };
-function openGames(id, o, refresh) {
-  const sh = openSheet(`<h3>Play with ${esc(o.name)}</h3><p class="hint" style="margin:0">A light way to get talking before you unmask.</p>
-    <button class="gamecard" id="gTot"><span class="circ">${I('split')}</span><span><b>This or that</b><span class="hint">You both pick. Answers show only when you’ve both chosen.</span></span></button>
-    <button class="gamecard" id="gTtl"><span class="circ">${I('list3')}</span><span><b>Two truths, one lie</b><span class="hint">Write three things about you. They guess which one isn’t true.</span></span></button>
-    <form id="ttlf" style="display:none;margin-top:16px">
+function watchTimes() {
+  const now = new Date(), out = [['15', 'In 15 minutes', new Date(+now + 15 * 6e4)], ['30', 'In 30 minutes', new Date(+now + 30 * 6e4)], ['60', 'In an hour', new Date(+now + 60 * 6e4)]];
+  const nine = new Date(now); nine.setHours(21, 0, 0, 0);
+  if (nine - now > 30 * 6e4) out.push(['t9', 'Today at 9 pm', nine]);
+  const tm = new Date(nine); tm.setDate(tm.getDate() + 1); out.push(['m9', 'Tomorrow at 9 pm', tm]);
+  return out;
+}
+function openGames(id, o, refresh, start) {
+  const sh = openSheet(`<h3>Play with ${esc(o.name)}</h3><p class="hint" style="margin:0">Good for breaking the ice, or when the chat goes quiet.</p>
+    <button class="gamecard" data-g="qa" type="button"><span class="circ">${I('chat')}</span><span><b>Question for both</b><span class="hint">You both answer the same question. Answers open when you’ve both replied.</span></span></button>
+    <div class="gamecard"><span class="circ">${I('split')}</span><span style="flex:1"><b>This or that</b><span class="hint">Answers show only when you’ve both picked.</span>
+      <span class="decks"><button type="button" class="pill" data-deck="tot">Classic</button><button type="button" class="pill" data-deck="blr">Bangalore</button><button type="button" class="pill" data-deck="wyr">Would you rather</button></span></span></div>
+    <button class="gamecard" data-g="ttl" type="button"><span class="circ">${I('list3')}</span><span><b>Two truths, one lie</b><span class="hint">Write three things about you. They guess which one isn’t true.</span></span></button>
+    <form id="ttlf" class="gform" hidden>
       ${[0, 1, 2].map((k) => `<div class="field" style="flex-direction:row;align-items:center;gap:10px"><input type="radio" name="lie" value="${k}" aria-label="Statement ${k + 1} is the lie" ${k === 2 ? 'checked' : ''} style="width:20px;height:20px;flex:none;accent-color:#0B4A5C"><input id="st${k}" maxlength="120" placeholder="${['I’ve ridden to Ladakh on a bike', 'I make a very good biryani', 'I’ve never watched Sholay'][k]}" style="flex:1" required></div>`).join('')}
       <p class="hint" style="margin-top:-4px">Select the circle next to your lie.</p>
-      <button class="btn block">Send</button></form>`);
-  sh.querySelector('#gTot').onclick = async () => { try { await api(`/matches/${id}/game`, { method: 'POST', body: { type: 'tot' } }); closeSheet(); refresh(); } catch (x) { toast(x.message); } };
-  sh.querySelector('#gTtl').onclick = () => { sh.querySelector('#ttlf').style.display = 'block'; sh.querySelector('#st0').focus(); };
-  sh.querySelector('#ttlf').onsubmit = async (e) => {
+      <button class="btn block">Send</button></form>
+    <button class="gamecard" data-g="song" type="button"><span class="circ">${I('music')}</span><span><b>Song swap</b><span class="hint">Send a song that says something about you. We add YouTube and Spotify links.</span></span></button>
+    <form id="songf" class="gform" hidden>
+      <div class="field"><label for="sgt">Song</label><input id="sgt" maxlength="80" required placeholder="Tum Se Hi"></div>
+      <div class="field"><label for="sga">Artist</label><input id="sga" maxlength="60" placeholder="Mohit Chauhan"></div>
+      <div class="field"><label for="sgw">Why this one? (optional)</label><input id="sgw" maxlength="120" placeholder="My go-to song for long drives"></div>
+      <button class="btn block">Send song</button></form>
+    <button class="gamecard" data-g="watch" type="button"><span class="circ">${I('play')}</span><span><b>Watch together</b><span class="hint">Pick a show and a start time. You both press play at the countdown, each on your own app.</span></span></button>
+    <form id="watchf" class="gform" hidden>
+      <div class="field"><label for="wt">What</label><input id="wt" maxlength="80" required placeholder="A movie, or an episode of a show"></div>
+      <div class="row"><div class="field"><label for="wp">Where</label><select id="wp">${CFG.platforms.map((x) => `<option>${esc(x)}</option>`).join('')}</select></div>
+      <div class="field"><label for="ww">When</label><select id="ww">${watchTimes().map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}<option value="c">Pick a time</option></select></div></div>
+      <div class="field" id="wcf" hidden><label for="wc">Start time</label><input id="wc" type="datetime-local"></div>
+      <p class="hint" style="margin-top:-4px">There are no calls on PAUSE. Chat while you watch.</p>
+      <button class="btn block">Send invite</button></form>`);
+  sh.classList.add('tall');
+  const send = async (body) => { try { await api(`/matches/${id}/game`, { method: 'POST', body }); closeSheet(); refresh(); } catch (x) { toast(x.message); } };
+  const showForm = (f) => { sh.querySelectorAll('.gform').forEach((x) => { x.hidden = x.id !== f; }); const box = sh.querySelector('#' + f); box.scrollIntoView({ block: 'center' }); const inp = box.querySelector('input:not([type=radio])'); if (inp) inp.focus(); };
+  sh.querySelector('[data-g="qa"]').onclick = () => send({ type: 'qa' });
+  sh.querySelectorAll('[data-deck]').forEach((b) => b.onclick = () => send({ type: 'tot', deck: b.dataset.deck }));
+  sh.querySelector('[data-g="ttl"]').onclick = () => showForm('ttlf');
+  sh.querySelector('[data-g="song"]').onclick = () => showForm('songf');
+  sh.querySelector('[data-g="watch"]').onclick = () => showForm('watchf');
+  sh.querySelector('#ww').onchange = () => { sh.querySelector('#wcf').hidden = sh.querySelector('#ww').value !== 'c'; };
+  sh.querySelector('#ttlf').onsubmit = (e) => { e.preventDefault(); send({ type: 'ttl', lie: +sh.querySelector('input[name=lie]:checked').value, statements: [0, 1, 2].map((k) => sh.querySelector('#st' + k).value) }); };
+  sh.querySelector('#songf').onsubmit = (e) => { e.preventDefault(); send({ type: 'song', title: sh.querySelector('#sgt').value, artist: sh.querySelector('#sga').value, why: sh.querySelector('#sgw').value }); };
+  sh.querySelector('#watchf').onsubmit = (e) => {
     e.preventDefault();
-    const lie = +sh.querySelector('input[name=lie]:checked').value;
-    try { await api(`/matches/${id}/game`, { method: 'POST', body: { type: 'ttl', lie, statements: [0, 1, 2].map((k) => sh.querySelector('#st' + k).value) } }); closeSheet(); refresh(); } catch (x) { toast(x.message); }
+    const k = sh.querySelector('#ww').value;
+    const at = k === 'c' ? new Date(sh.querySelector('#wc').value) : (watchTimes().find((x) => x[0] === k) || [])[2];
+    if (!at || isNaN(at)) { toast('Pick a start time'); return; }
+    send({ type: 'watch', title: sh.querySelector('#wt').value, platform: sh.querySelector('#wp').value, at: at.toISOString() });
   };
+  if (start === 'qa') sh.querySelector('[data-g="qa"]').classList.add('hl');
+  if (['ttl', 'song', 'watch'].includes(start)) showForm(start + 'f');
+}
+function quickTimes() {
+  const now = new Date(), out = [];
+  const at = (n, h) => { const x = new Date(now); x.setDate(x.getDate() + n); x.setHours(h, 0, 0, 0); return x; };
+  out.push(at(1, 19));
+  for (let n = 0; n <= 7; n++) { const wd = at(n, 12).getDay(); if (wd === 6) out.push(at(n, 11), at(n, 17)); if (wd === 0) out.push(at(n, 10), at(n, 18)); }
+  const seen = new Set();
+  return out.filter((t) => t - now > 60 * 6e4 && !seen.has(+t) && seen.add(+t)).sort((a, b) => a - b).slice(0, 5);
+}
+async function openPlanner(id, o, d, draft = {}, refresh) {
+  try { [SPOTS, IDEAS] = await Promise.all([SPOTS || api('/spots'), IDEAS || api('/ideas')]); } catch (x) { toast(x.message); return; }
+  let spot = draft.spot || '', idea = IDEAS.find((x) => x.id === draft.idea) || null;
+  const times = new Map();
+  const ordered = idea ? [...SPOTS].sort((a, b) => idea.spots.includes(b.id) - idea.spots.includes(a.id)) : SPOTS;
+  const sh = openSheet(`<h3>Plan a date with ${esc(o.name)}</h3>
+    ${idea ? `<div class="pidea">${I('star')}<span><small>Idea</small><b>${esc(idea.title)}</b></span><button class="linkbtn" id="noidea" type="button">Remove</button></div>` : ''}
+    ${d.level === 0 ? `<div class="note" style="margin:10px 0">${I('mask')}<span>You’re both still masked. Unmask before you meet, so you can recognise each other.</span></div>` : ''}
+    <span class="flabel" style="display:block;margin-top:12px">Where</span>
+    <div class="spots compact pspots" role="group" aria-label="Places">${ordered.map((sp) => `<button type="button" class="spot" data-spot="${sp.id}" aria-pressed="${spot === sp.id}"><div><b>${esc(sp.name)}</b><small>${esc(sp.kind)}, ${esc(sp.area)}</small></div>${idea && idea.spots.includes(sp.id) ? '<span class="sug">Suggested</span>' : ''}</button>`).join('')}</div>
+    <div class="field" style="margin-top:10px"><label for="pplace">Or somewhere else</label><input id="pplace" maxlength="80" autocomplete="off" placeholder="Name of a café, park or place" value="${esc(draft.place || '')}"></div>
+    <span class="flabel">When (pick up to 3)</span>
+    <div class="chips" id="ptimes" style="margin-top:8px">${quickTimes().map((t) => `<button type="button" class="pill" data-t="${t.toISOString()}" aria-pressed="false" aria-label="${esc(fmtWhen(t))}">${esc(fmtShort(t))}</button>`).join('')}</div>
+    <div class="row" style="margin-top:12px;align-items:flex-end"><div class="field" style="margin:0"><label for="pdt">Another time</label><input id="pdt" type="datetime-local"></div><button type="button" class="btn ghost" id="padd" style="flex:none;min-height:48px">Add</button></div>
+    <p class="hint">${esc(o.name)} picks one of your times, or suggests others. A busy public place is best for a first meeting.</p>
+    <div class="err" id="perr" role="alert"></div>
+    <button class="btn block" id="psend" type="button">Send plan</button>`);
+  sh.classList.add('tall');
+  const syncSpots = () => sh.querySelectorAll('[data-spot]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.spot === spot)));
+  sh.querySelectorAll('[data-spot]').forEach((b) => b.onclick = () => { spot = spot === b.dataset.spot ? '' : b.dataset.spot; if (spot) sh.querySelector('#pplace').value = ''; syncSpots(); });
+  sh.querySelector('#pplace').oninput = () => { if (sh.querySelector('#pplace').value.trim()) { spot = ''; syncSpots(); } };
+  if (sh.querySelector('#noidea')) sh.querySelector('#noidea').onclick = () => { idea = null; sh.querySelector('.pidea').remove(); };
+  const bindTime = (b) => b.onclick = () => {
+    const on = b.getAttribute('aria-pressed') === 'true';
+    if (!on && [...sh.querySelectorAll('#ptimes [aria-pressed="true"]')].length >= 3) { toast('Up to three times'); return; }
+    b.setAttribute('aria-pressed', String(!on));
+  };
+  sh.querySelectorAll('#ptimes .pill').forEach(bindTime);
+  sh.querySelector('#padd').onclick = () => {
+    const v = sh.querySelector('#pdt').value; const t = v ? new Date(v) : null;
+    if (!t || isNaN(t) || t - Date.now() < 30 * 6e4) { toast('Pick a time at least half an hour from now'); return; }
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'pill'; b.dataset.t = t.toISOString(); b.setAttribute('aria-pressed', 'false'); b.setAttribute('aria-label', fmtWhen(t)); b.textContent = fmtShort(t);
+    sh.querySelector('#ptimes').appendChild(b); bindTime(b); b.click(); sh.querySelector('#pdt').value = '';
+  };
+  if (spot) { const b = sh.querySelector(`[data-spot="${spot}"]`); if (b) b.scrollIntoView({ block: 'nearest' }); }
+  sh.querySelector('#psend').onclick = async () => {
+    const slots = [...sh.querySelectorAll('#ptimes [aria-pressed="true"]')].map((b) => b.dataset.t);
+    const place = sh.querySelector('#pplace').value.trim();
+    if (!spot && !place) { sh.querySelector('#perr').textContent = 'Choose a place, or type one.'; return; }
+    if (!slots.length) { sh.querySelector('#perr').textContent = 'Pick at least one time.'; return; }
+    try { await api(`/matches/${id}/plans`, { method: 'POST', body: { spot_id: spot, place, idea_id: idea ? idea.id : '', slots } }); closeSheet(); toast('Plan sent'); if (refresh) refresh(); }
+    catch (x) { sh.querySelector('#perr').textContent = x.message; }
+  };
+}
+function endMatchSheet(id, o) {
+  return new Promise((resolve) => {
+    let pick = 0;
+    const sh = openSheet(`<h3>End this match?</h3><p class="hint" style="margin:0 0 14px">The chat closes and one of your five slots frees up. Send ${esc(o.name)} a kind note, or end it quietly.</p>
+      <div class="pons" role="radiogroup" aria-label="Goodbye note">${CFG.goodbyes.map((g, k) => `<button type="button" class="pon" role="radio" data-gb="${k}" aria-pressed="${k === 0}" aria-checked="${k === 0}"><span>${esc(g)}</span></button>`).join('')}<button type="button" class="pon" role="radio" data-gb="-1" aria-pressed="false" aria-checked="false"><span>No note</span></button></div>
+      <div style="display:flex;gap:10px;margin-top:16px"><button class="btn ghost" style="flex:1" id="gbno" type="button">Keep chatting</button><button class="btn danger" style="flex:1" id="gbok" type="button">End match</button></div>`);
+    const done = (v) => { closeSheet(); resolve(v); };
+    document.querySelector('.sheet-bg').onclick = () => done(false);
+    sh.querySelectorAll('[data-gb]').forEach((b) => b.onclick = () => { pick = +b.dataset.gb; sh.querySelectorAll('[data-gb]').forEach((x) => { const on = x === b; x.setAttribute('aria-pressed', String(on)); x.setAttribute('aria-checked', String(on)); }); });
+    sh.querySelector('#gbno').onclick = () => done(false);
+    sh.querySelector('#gbok').onclick = async () => { try { await api(`/matches/${id}/close`, { method: 'POST', body: { note: pick } }); done(true); } catch (x) { toast(x.message); } };
+  });
+}
+async function reportFlow(o) {
+  const reason = await dialog({ title: 'Report ' + o.name, body: 'A member of our team reviews every report. Reporting also blocks them.', input: 'What happened?', ok: 'Report and block', danger: true });
+  if (reason === false) return false;
+  await api('/report/' + o.id, { method: 'POST', body: { reason } }); toast('Reported and blocked'); return true;
 }
 async function chatView(id) {
   let data;
   try { data = await api('/matches/' + id); } catch (x) { toast(x.message); location.hash = 'chats'; return; }
+  setSkew(data.server_now);
   let lastLevel = data.level;
-  const sig = (d) => JSON.stringify([d.level, d.pending_by, d.closed, d.messages.length, d.messages.map((m) => (m.meta ? JSON.stringify(m.meta) : '')).join('|')]);
+  const sig = (d) => JSON.stringify([d.level, d.pending_by, d.closed, d.extended, d.started, d.messages.length, d.messages.map((m) => (m.meta ? JSON.stringify(m.meta) : '')).join('|'), (d.plans || []).map((p) => p.status + p.my_feedback + p.my_safe).join()]);
   let firstDraw = true;
   const draw = (d) => {
     const o = d.other;
@@ -862,7 +1063,7 @@ async function chatView(id) {
     const nearBottom = firstDraw || window.innerHeight + window.scrollY >= document.body.scrollHeight - 160;
     const msgs = d.messages.map((m) => {
       if (m.system) return `<div class="m sys">${esc(m.body)}</div>`;
-      if (m.kind === 'tot' || m.kind === 'ttl') return gameHtml(m, d);
+      if (['tot', 'ttl', 'qa', 'song', 'watch', 'plan', 'likenote'].includes(m.kind)) return gameHtml(m, d);
       const mine = m.sender_id === d.me;
       return `<div class="m ${mine ? 'me' : 'them'}">${esc(m.body)}</div>${!mine && m.flag ? `<div class="warn">${I('alert')}<span>${FLAG_TEXT[m.flag] || FLAG_TEXT.link}</span></div>` : ''}`;
     }).join('');
@@ -878,30 +1079,71 @@ async function chatView(id) {
         reveal = `<div style="padding:0 14px 6px">${d.level === 0 ? `<button class="lightbtn" style="width:100%" data-r="request">${I('mask')}Unmask</button>` : `<button class="darkbtn" style="width:100%" data-r="request">${I('phone')}Share numbers</button>`}</div>`;
       }
     }
-    const contact = d.level >= 2 && o.phone ? `<div class="revealbox"><div style="display:flex;align-items:center;gap:10px">${I('phone')}<span>${esc(o.name)}: <a href="tel:+91${esc(o.phone)}" style="color:#FFE3A3">+91 ${esc(o.phone)}</a></span></div><div style="font-size:13px;color:#8FB4B8">Meeting for the first time? Choose a busy public place and share your plan from Safety.</div></div>` : '';
+    const contact = d.level >= 2 && o.phone ? `<div class="revealbox"><div style="display:flex;align-items:center;gap:10px">${I('phone')}<span>${esc(o.name)}: <a href="tel:+91${esc(o.phone)}" style="color:#FFE3A3">+91 ${esc(o.phone)}</a></span></div><div style="font-size:13px;color:#8FB4B8">Meeting for the first time? Choose a busy public place and share your plan with a friend.</div></div>` : '';
+    const cs = clockState(d);
+    const quietFor = leftLabel(nowS() - new Date(d.last_activity).getTime());
+    const fadebar = !d.closed && cs.show ? `<div class="fadebar ${cs.urgent ? 'urgent' : ''}">${ring(cs.frac)}<span>${!d.started ? `Say hi within ${leftLabel(cs.ms)}, or this match fades.` : `Quiet for ${quietFor}. This match fades in ${leftLabel(cs.ms)} unless one of you writes.`}</span>${cs.canExtend ? '<button class="darkbtn sm" id="extend" type="button">Need more time</button>' : ''}</div>` : '';
+    const texts = d.messages.filter((m) => !m.system && m.kind === 'text').slice(-4);
+    const flat = texts.length >= 4 && texts.every((m) => m.body.trim().length <= 12);
+    const nudgeOn = !d.closed && (cs.show || flat) && !sessionStorage.getItem('nudge:' + id);
+    const nudge = nudgeOn ? `<div class="nudge"><span>${!d.started ? 'Start with' : 'Stuck?'}</span><button type="button" data-quick="qa">Question for both</button><button type="button" data-quick="tot">This or that</button><button type="button" class="nx" id="nx" aria-label="Hide suggestions">${I('x')}</button></div>` : '';
+    const pin = d.closed ? '' : pinnedPlan(d);
     render(`<div class="night">
       <header class="chathead">
         <a class="back" href="#chats" aria-label="Back to chats" style="width:36px">${I('back')}</a>
         ${o.photos[0] ? `<img class="av" style="width:42px;height:42px;border-radius:21px" src="/api/photo/${o.photos[0].id}?l=${d.level}" alt="${esc(o.name)}">` : `<span class="av" style="width:42px;height:42px;border-radius:21px">${initial(o.name)}</span>`}
         <div style="flex:1;min-width:0"><div style="font-weight:600">${esc(o.name)}, ${o.age}</div><small>${o.id_verified ? 'ID verified' : 'Verified'}, ${esc(o.city)}${d.kundli ? `, kundli ${d.kundli.total} of 36` : ''}</small></div>
-        <button aria-label="Chat options" id="mbtn" style="background:none;border:none;width:44px;height:44px;cursor:pointer;display:flex;align-items:center;justify-content:center">${I('dots')}</button>
+        ${d.closed ? '' : `<button aria-label="Plan a date" id="pbtn" class="hbtn">${I('calendar')}</button>`}
+        <button aria-label="Chat options" id="mbtn" class="hbtn">${I('dots')}</button>
       </header>
       <div class="steps" aria-label="Progress">${STEPS.map((l, k) => `<div class="${k <= d.level ? 'on' : ''}"><i></i>${l}</div>`).join('')}</div>
+      ${fadebar}${pin}
       ${d.level >= 1 && o.photos.length ? `<div style="display:flex;gap:8px;padding:12px 16px;overflow-x:auto">${o.photos.map((p) => `<img src="/api/photo/${p.id}?l=${d.level}" alt="Photo of ${esc(o.name)}" style="height:132px;border-radius:12px">`).join('')}</div>` : ''}
       ${contact}
-      <div class="msgs" id="msgs">${msgs}${d.closed ? '<div class="m sys">This chat is closed.</div>' : ''}</div>
-      ${d.closed ? '' : `<div class="dock"><div>${reveal}<form class="composer" id="cf"><button type="button" class="ib" id="gbtn" aria-label="Play a game">${I('dice')}</button><label for="msg" class="sr">Message</label><input id="msg" autocomplete="off" placeholder="Message ${esc(o.name)}" maxlength="1000"><button class="ib send" aria-label="Send">${I('send')}</button></form></div></div>`}
+      <div class="msgs ${nudgeOn ? 'pad' : ''}" id="msgs">${msgs}${d.closed ? `<div class="m sys">${d.ended_reason === 'faded' ? 'This match faded.' : 'This chat is closed.'}</div>` : ''}</div>
+      ${d.closed ? '' : `<div class="dock"><div>${reveal}${nudge}<form class="composer" id="cf"><button type="button" class="ib" id="gbtn" aria-label="Play a game">${I('dice')}</button><label for="msg" class="sr">Message</label><input id="msg" autocomplete="off" placeholder="Message ${esc(o.name)}" maxlength="1000"><button class="ib send" aria-label="Send">${I('send')}</button></form></div></div>`}
     </div>`, true);
     const input = el('msg');
     if (input && keep) { input.value = keep.v; if (hadFocus) { input.focus({ preventScroll: true }); try { input.setSelectionRange(keep.a, keep.b); } catch (e) { /* ignore */ } } }
     if (nearBottom) window.scrollTo(0, document.body.scrollHeight);
     firstDraw = false;
-    document.querySelectorAll('[data-r]').forEach((b) => b.onclick = async () => {
-      try { await api(`/matches/${id}/reveal`, { method: 'POST', body: { action: b.dataset.r } }); refresh(); } catch (x) { toast(x.message); }
+    const call = (fn) => async () => { try { await fn(); refresh(); } catch (x) { toast(x.message); } };
+    document.querySelectorAll('[data-r]').forEach((b) => b.onclick = call(() => api(`/matches/${id}/reveal`, { method: 'POST', body: { action: b.dataset.r } })));
+    document.querySelectorAll('[data-tot]').forEach((b) => b.onclick = call(() => api(`/matches/${id}/game/${b.dataset.tot}`, { method: 'POST', body: { choice: b.dataset.c } })));
+    document.querySelectorAll('[data-ttl]').forEach((b) => b.onclick = call(() => api(`/matches/${id}/game/${b.dataset.ttl}`, { method: 'POST', body: { guess: +b.dataset.g } })));
+    document.querySelectorAll('[data-wjoin]').forEach((b) => b.onclick = call(() => api(`/matches/${id}/game/${b.dataset.wjoin}`, { method: 'POST', body: { join: true } })));
+    document.querySelectorAll('[data-qa]').forEach((b) => b.onclick = async () => {
+      const g = d.messages.find((m) => m.id === +b.dataset.qa);
+      const a = await dialog({ title: g ? g.meta.q : 'Your answer', input: 'Your answer', ok: 'Send answer' });
+      if (a) call(() => api(`/matches/${id}/game/${b.dataset.qa}`, { method: 'POST', body: { answer: a } }))();
     });
-    document.querySelectorAll('[data-tot]').forEach((b) => b.onclick = async () => { try { await api(`/matches/${id}/game/${b.dataset.tot}`, { method: 'POST', body: { choice: b.dataset.c } }); refresh(); } catch (x) { toast(x.message); } });
-    document.querySelectorAll('[data-ttl]').forEach((b) => b.onclick = async () => { try { await api(`/matches/${id}/game/${b.dataset.ttl}`, { method: 'POST', body: { guess: +b.dataset.g } }); refresh(); } catch (x) { toast(x.message); } });
+    document.querySelectorAll('[data-songback]').forEach((b) => b.onclick = () => openGames(id, o, refresh, 'song'));
+    document.querySelectorAll('[data-quick]').forEach((b) => b.onclick = call(() => api(`/matches/${id}/game`, { method: 'POST', body: { type: b.dataset.quick } })));
+    if (el('nx')) el('nx').onclick = () => { sessionStorage.setItem('nudge:' + id, '1'); draw(data); };
+    if (el('extend')) el('extend').onclick = call(() => api(`/matches/${id}/extend`, { method: 'POST' }));
+    document.querySelectorAll('[data-pact]').forEach((b) => b.onclick = async () => {
+      if (b.dataset.pact === 'cancel' && !(await dialog({ title: 'Cancel this plan?', body: o.name + ' will see that you cancelled.', ok: 'Cancel plan', cancel: 'Keep it', danger: true }))) return;
+      call(() => api('/plans/' + b.dataset.pid, { method: 'POST', body: { action: b.dataset.pact, slot: b.dataset.slot } }))();
+    });
+    document.querySelectorAll('[data-pother]').forEach((b) => b.onclick = () => { const p = d.plans.find((x) => x.id === +b.dataset.pother); openPlanner(id, o, d, { spot: p.spot_id, place: p.spot_id ? '' : p.place, idea: p.idea_id }, refresh); });
+    const planOf = (pid) => d.plans.find((x) => x.id === +pid);
+    document.querySelectorAll('[data-ics]').forEach((b) => b.onclick = () => downloadIcs(planOf(b.dataset.ics), o.name));
+    document.querySelectorAll('[data-sharep]').forEach((b) => b.onclick = () => shareWithFriend(planOf(b.dataset.sharep), o.name));
+    document.querySelectorAll('[data-safe]').forEach((b) => b.onclick = async () => {
+      try { await api('/plans/' + b.dataset.safe, { method: 'POST', body: { action: 'safe' } }); } catch (x) { toast(x.message); return; }
+      const num = (ME.trusted_phone || '').replace(/\D/g, '').slice(-10);
+      if (num.length === 10) window.open('https://wa.me/91' + num + '?text=' + encodeURIComponent('Home safe. Thanks for keeping an eye out.'), '_blank'); else toast('Marked home safe');
+      refresh();
+    });
+    document.querySelectorAll('[data-fb]').forEach((b) => b.onclick = async () => {
+      const v = b.dataset.fb;
+      try { await api('/plans/' + b.dataset.pid, { method: 'POST', body: { action: 'feedback', value: v } }); } catch (x) { toast(x.message); return; }
+      if (v === 'again') { toast('Lovely. Plan the next one when you’re ready.'); refresh(); }
+      if (v === 'not') { if (await endMatchSheet(id, o)) { location.hash = 'chats'; return; } refresh(); }
+      if (v === 'report') { if (await reportFlow(o)) { location.hash = 'chats'; return; } refresh(); }
+    });
     if (el('gbtn')) el('gbtn').onclick = () => openGames(id, o, refresh);
+    if (el('pbtn')) el('pbtn').onclick = () => openPlanner(id, o, d, {}, refresh);
     if (el('cf')) el('cf').onsubmit = async (e) => {
       e.preventDefault();
       const v = el('msg').value.trim(); if (!v) return;
@@ -915,45 +1157,41 @@ async function chatView(id) {
     el('mbtn').onclick = () => {
       if (document.querySelector('.menu')) { document.querySelector('.menu').remove(); return; }
       const menu = document.createElement('div'); menu.className = 'menu';
-      menu.innerHTML = `<button data-a="spot">${I('pin')}Suggest a date spot</button><button data-a="date">${I('calendar')}Share date plan</button><button data-a="close">${I('minus')}End match politely</button><button data-a="report">${I('flag')}Report</button><button data-a="block">${I('block')}Block</button>`;
+      menu.innerHTML = `${d.closed ? '' : `<button data-a="plan">${I('calendar')}Plan a date</button>`}<button data-a="safety">${I('shield')}Safety tools</button>${d.closed ? '' : `<button data-a="close">${I('minus')}End match politely</button>`}<button data-a="report">${I('flag')}Report</button><button data-a="block">${I('block')}Block</button>`;
       document.querySelector('.night').appendChild(menu);
       menu.onclick = async (e) => {
         const b = e.target.closest('button'); if (!b) return;
         const a = b.dataset.a;
         menu.remove();
-        if (a === 'date') { sessionStorage.setItem('back', '#chat/' + id); location.hash = 'safety'; return; }
-        if (a === 'spot') {
-          try { SPOTS = SPOTS || await api('/spots'); } catch (x) { toast(x.message); return; }
-          const sh = openSheet(`<h2 style="margin:4px 0 4px;font-size:24px">Suggest a date spot</h2><p class="hint" style="margin:0 0 12px">Busy, public places. Tap one to add it to your message.</p>
-            <div class="spots compact">${SPOTS.map((sp) => `<button type="button" class="spot" data-id="${sp.id}"><div><b>${esc(sp.name)}</b><small>${esc(sp.kind)}, ${esc(sp.area)}</small></div></button>`).join('')}</div>`);
-          sh.classList.add('tall');
-          sh.querySelectorAll('.spot').forEach((b) => b.onclick = () => {
-            const sp = SPOTS.find((x) => x.id === b.dataset.id);
-            closeSheet(); const m = el('msg'); if (!m) return;
-            m.value = `How about ${sp.name} in ${sp.area}? ${sp.note}`; m.focus();
-          });
-          return;
-        }
-        if (a === 'close' && await dialog({ title: 'End this match?', body: 'The chat closes and one of your five match slots frees up. ' + o.name + ' sees a short goodbye note.', ok: 'End match', danger: true })) { await api(`/matches/${id}/close`, { method: 'POST' }); location.hash = 'chats'; }
-        if (a === 'report') { const reason = await dialog({ title: 'Report ' + o.name, body: 'A member of our team reviews every report. Reporting also blocks them.', input: 'What happened?', ok: 'Report and block', danger: true }); if (reason !== false) { await api('/report/' + o.id, { method: 'POST', body: { reason } }); toast('Reported and blocked'); location.hash = 'chats'; } }
+        if (a === 'plan') return openPlanner(id, o, d, {}, refresh);
+        if (a === 'safety') { sessionStorage.setItem('back', '#chat/' + id); location.hash = 'safety'; return; }
+        if (a === 'close' && await endMatchSheet(id, o)) location.hash = 'chats';
+        if (a === 'report' && await reportFlow(o)) location.hash = 'chats';
         if (a === 'block' && await dialog({ title: 'Block ' + o.name + '?', body: 'You won’t see each other again and this chat ends.', ok: 'Block', danger: true })) { await api('/block/' + o.id, { method: 'POST' }); location.hash = 'chats'; }
       };
     };
     if (d.level > lastLevel && d.level === 1) unmaskFx(o);
     lastLevel = d.level;
+    clearInterval(tickTimer);
+    if (document.querySelector('[data-watch-at]')) tickTimer = setInterval(tickWatch, 1000);
   };
   let last = sig(data);
   const refresh = async () => {
     const typing = el('msg') && el('msg').value;
     try { data = await api('/matches/' + id); } catch (e) { return; }
+    setSkew(data.server_now);
     last = sig(data);
     draw(data);
     if (typing && el('msg')) el('msg').value = typing;
   };
   draw(data);
+  // Arriving from an idea or a spot in Plans: open the planner (or the game) straight away.
+  let draft = null;
+  try { draft = JSON.parse(sessionStorage.getItem('planDraft') || 'null'); sessionStorage.removeItem('planDraft'); } catch (e) { draft = null; }
+  if (draft && !data.closed) { if (draft.game) openGames(id, data.other, refresh, draft.game); else openPlanner(id, data.other, data, draft, refresh); }
   pollTimer = setInterval(async () => {
     if (document.querySelector('.sheet,.menu')) return;
-    try { const d = await api('/matches/' + id); const s = sig(d); if (s !== last) { last = s; data = d; draw(d); } } catch (e) { /* ignore */ }
+    try { const d = await api('/matches/' + id); setSkew(d.server_now); const s = sig(d); if (s !== last) { last = s; data = d; draw(d); } } catch (e) { /* ignore */ }
   }, 4000);
 }
 
@@ -961,10 +1199,10 @@ async function chatView(id) {
 function safetyView() {
   const m = ME;
   const info = (icon, title, sub) => `<div class="toggle"><span class="circ">${I(icon)}</span><div class="tx"><b>${title}</b><span>${sub}</span></div></div>`;
-  const back = sessionStorage.getItem('back') || (m.status !== 'verified' ? '#verify' : '');
+  const back = sessionStorage.getItem('back') || (m.status !== 'verified' ? '#verify' : '#profile');
   sessionStorage.removeItem('back');
   render(`<main class="screen">
-    ${back ? `<a href="${esc(back)}" class="backlink">${I('back')}Back</a>` : ''}
+    <a href="${esc(back)}" class="backlink">${I('back')}${back === '#profile' ? 'Profile' : 'Back'}</a>
     <div class="top"><h1>Safety</h1></div>
     ${toggleRow('pz', 'pause', 'Take a pause', 'Hide from picks for a while. Your open chats stay.', m.paused)}
     <h2 class="section-t">Always on</h2>
@@ -986,13 +1224,13 @@ function safetyView() {
       <div class="field"><label for="tp">Their number</label><input id="tp" type="tel" value="${esc(m.trusted_phone)}"></div></div>
       <div class="field"><label for="plan">Date plan</label><input id="plan" placeholder="Saturday 7:30 pm, coffee with Rohan at the café on 12th Main"></div>
       <button class="btn block" id="share">${I('calendar')}Send plan on WhatsApp</button>
-      <p class="hint">Sends your plan and asks them to call if they haven’t heard from you within an hour.</p>
+      <p class="hint">Sends your plan and asks them to call if they haven’t heard from you within an hour. Dates you set with the planner in a chat have a Share with a friend button that fills this in for you.</p>
     </div>
     <a class="btn danger block" href="tel:112" style="margin-top:18px">${I('phone')}Emergency: call 112</a>
     <button class="btn ghost block" id="alert" style="margin-top:10px">${I('pin')}Send my location to my trusted person</button>
     <p class="hint" style="margin-top:24px">Questions about a rule or a problem? <button class="linkbtn" data-ask type="button">Ask for help</button> or contact our <a href="/grievance" target="_blank">grievance officer</a>.</p>
     <button class="btn ghost block" id="del" style="margin-top:16px;color:var(--claret);border-color:#F2C2B8">Delete my account and data</button>
-  </main>${m.status === 'verified' ? navbar('safety') : ''}`);
+  </main>${m.status === 'verified' ? navbar('profile') : ''}`);
   el('pz').onchange = async () => { try { ME = await api('/me', { method: 'PUT', body: { paused: el('pz').checked } }); toast(ME.paused ? 'Paused. You’re hidden from picks.' : 'You’re back in picks.'); } catch (x) { toast(x.message); } };
   el('saveshield').onclick = async () => {
     try { ME = await api('/me', { method: 'PUT', body: { hide_company: el('hc').checked, company: el('co').value, hidden_phones: el('hp').value.split(/\n|,/) } }); toast('Contact shield saved'); } catch (x) { toast(x.message); }
@@ -1014,6 +1252,203 @@ function safetyView() {
   el('del').onclick = async () => {
     if (await dialog({ title: 'Delete your account?', body: 'Your profile, photos, chats and data are deleted permanently. This can’t be undone. If you only need a break, use Take a pause instead.', ok: 'Delete everything', danger: true })) { await api('/me', { method: 'DELETE' }); location.href = '/'; }
   };
+}
+
+// ---------- time and countdowns ----------
+let SKEW = 0; // server clock minus this device's clock, so countdowns agree on both phones
+const nowS = () => Date.now() + SKEW;
+const setSkew = (iso) => { const t = new Date(iso).getTime(); if (t) SKEW = t - Date.now(); };
+const left = (iso) => new Date(iso).getTime() - nowS();
+function leftLabel(ms) {
+  if (ms <= 0) return 'a moment';
+  if (ms >= 36 * 36e5) { const d = Math.round(ms / 864e5); return `${d} day${d > 1 ? 's' : ''}`; }
+  if (ms >= 36e5) { const h = Math.ceil(ms / 36e5); return `${h} hour${h > 1 ? 's' : ''}`; }
+  const m = Math.max(1, Math.ceil(ms / 6e4)); return `${m} min`;
+}
+function ring(frac, cls = '') {
+  const r = 10, c = 2 * Math.PI * r, f = Math.max(0.02, Math.min(1, frac));
+  return `<svg class="ring ${cls}" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="${r}" class="bg"/><circle cx="12" cy="12" r="${r}" class="fg" stroke-dasharray="${(c * f).toFixed(2)} ${c.toFixed(2)}" transform="rotate(-90 12 12)"/></svg>`;
+}
+// When to show a match's countdown: before anyone says hi, after a quiet day, and in the last two days.
+function clockState(c) {
+  const ms = left(c.deadline);
+  const total = (c.quiet_days + (c.extended ? c.extend_days : 0)) * 864e5;
+  const quiet = nowS() - new Date(c.last_activity).getTime();
+  const urgent = ms < 864e5;
+  return { ms, frac: ms / total, urgent, show: !c.started || quiet > 864e5 || ms < 2 * 864e5,
+    canExtend: !c.extended && ms > 0 && ms < c.extend_days * 864e5,
+    text: !c.started ? `Say hi: ${leftLabel(ms)} left` : urgent ? `Fades in ${leftLabel(ms)}` : `Quiet. Fades in ${leftLabel(ms)}` };
+}
+const WHEN_FMT = new Intl.DateTimeFormat('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+const fmtWhen = (t) => WHEN_FMT.format(new Date(t));
+// "Sat 28, 11 am": short enough for two chips a row.
+function fmtShort(t) {
+  const d = new Date(t), h = d.getHours(), m = d.getMinutes();
+  const day = d.toLocaleDateString('en-IN', { weekday: 'short' }) + ' ' + d.getDate();
+  return `${day}, ${h % 12 || 12}${m ? ':' + String(m).padStart(2, '0') : ''} ${h < 12 ? 'am' : 'pm'}`;
+}
+function watchLabel(at) {
+  const ms = left(at);
+  if (ms > 60000) return `Starts in ${leftLabel(ms)}`;
+  if (ms > 0) return String(Math.ceil(ms / 1000));
+  if (ms > -60000) return 'Press play now';
+  if (ms > -3 * 36e5) return 'Started. Enjoy the show.';
+  return 'Watched together';
+}
+function tickWatch() {
+  const els = document.querySelectorAll('[data-watch-at]');
+  if (!els.length) { clearInterval(tickTimer); return; }
+  els.forEach((e) => { const ms = left(e.dataset.watchAt); e.textContent = watchLabel(e.dataset.watchAt); e.classList.toggle('go', ms <= 10000 && ms > -60000); });
+}
+
+// ---------- like sheet: "What made you pause?" ----------
+function likedYouBox(p) {
+  const ly = p.liked_you;
+  if (!ly) return '';
+  const what = ly.label ? `${esc(p.name)} paused on your ${esc(ly.label)}` : `${esc(p.name)} liked you`;
+  return `<div class="likedyou"><div class="lyh">${I('heart')}<b>${what}</b></div>
+    ${ly.photo ? `<img src="/api/photo/${esc(ly.photo)}" alt="Your photo">` : ''}
+    ${ly.text ? `<p class="lyq">${ly.q ? `<small>${esc(ly.q)}</small>` : ''}${esc(ly.text)}</p>` : ''}
+    ${ly.note ? `<p class="lynote">${esc(ly.note)}</p>` : ''}
+    ${ly.intent ? `<span class="lyint">Up for: ${esc(ly.intent)}</span>` : ''}
+    <small class="lyhint">Like back and it’s a match.</small></div>`;
+}
+function likeSheet(p) {
+  return new Promise((resolve) => {
+    let about = '', intent = '', done = false;
+    const opts = [];
+    if (p.prompt_a) opts.push(['prompt', `<small>${esc(p.prompt_q)}</small><span>${esc(p.prompt_a)}</span>`]);
+    if (p.bio) opts.push(['bio', `<small>About ${esc(p.name)}</small><span>${esc(p.bio.length > 110 ? p.bio.slice(0, 107) + '…' : p.bio)}</span>`]);
+    const photos = p.masked ? [] : (p.photos || []);
+    const sh = openSheet(`<h3>What made you pause?</h3>
+      <p class="hint" style="margin:0 0 14px">Tap what you liked and add a line. ${esc(p.name)} sees it with your like. Both are optional.</p>
+      ${opts.length || photos.length ? `<div class="pons" role="group" aria-label="What you liked">${opts.map(([k, h]) => `<button type="button" class="pon" data-about="${k}" aria-pressed="false">${h}</button>`).join('')}
+        ${photos.length ? `<div class="ponph">${photos.map((ph, k) => `<button type="button" class="pon ph" data-about="photo:${k}" aria-pressed="false" aria-label="Photo ${k + 1}"><img src="/api/photo/${ph.id}" alt=""></button>`).join('')}</div>` : ''}</div>` : ''}
+      <div class="field" style="margin-top:14px"><label for="lnote">Add a line</label><input id="lnote" maxlength="140" autocomplete="off" placeholder="Say something they can reply to"></div>
+      <span class="flabel">Up for</span>
+      <div class="chips" style="margin:8px 0 14px">${Object.entries(CFG.intents || {}).map(([k, v]) => `<button type="button" class="pill" data-intent="${k}" aria-pressed="false">${esc(v)}</button>`).join('')}</div>
+      <div class="err" id="lerr" role="alert"></div>
+      <button class="btn block" id="lsend" type="button">${p.liked_you ? 'Like back' : p.masked ? 'Send like, stay masked' : 'Send like'}</button>`);
+    sh.classList.add('tall');
+    const finish = (v) => { if (done) return; done = true; closeSheet(); resolve(v); };
+    document.querySelector('.sheet-bg').onclick = () => finish({ sent: false });
+    const note = sh.querySelector('#lnote');
+    const HOLD = { prompt: 'Ask about their answer, or say why it made you smile', bio: 'Pick one thing from their bio to ask about', photo: 'What’s the story behind this one?' };
+    sh.querySelectorAll('[data-about]').forEach((b) => b.onclick = () => {
+      about = about === b.dataset.about ? '' : b.dataset.about;
+      sh.querySelectorAll('[data-about]').forEach((o) => o.setAttribute('aria-pressed', String(o.dataset.about === about)));
+      note.placeholder = HOLD[about.split(':')[0]] || 'Say something they can reply to';
+    });
+    sh.querySelectorAll('[data-intent]').forEach((b) => b.onclick = () => {
+      intent = intent === b.dataset.intent ? '' : b.dataset.intent;
+      sh.querySelectorAll('[data-intent]').forEach((o) => o.setAttribute('aria-pressed', String(o.dataset.intent === intent)));
+    });
+    const send = async () => {
+      const btn = sh.querySelector('#lsend'); if (btn.disabled) return; btn.disabled = true;
+      try { const r = await api('/like/' + p.id, { method: 'POST', body: { kind: 'like', about, note: note.value, intent } }); finish({ sent: true, r }); }
+      catch (x) { btn.disabled = false; if (x.data && x.data.focus_full) return finish({ sent: false, full: true, error: x.message }); sh.querySelector('#lerr').textContent = x.message; }
+    };
+    sh.querySelector('#lsend').onclick = send;
+    note.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); send(); } };
+    (sh.querySelector('[data-about]') || note).focus({ preventScroll: true });
+  });
+}
+
+// ---------- plans: ideas, map, yours ----------
+let IDEAS = null;
+const VIBES = [['', 'All'], ['first', 'First date'], ['budget', 'Under ₹500'], ['sober', 'No alcohol'], ['rainy', 'Rainy day'], ['active', 'Active'], ['late', 'Late night'], ['home', 'Stay in']];
+const COST = ['', 'Under ₹500', '₹500 to ₹1,500', 'Over ₹1,500'];
+const plansHead = (tab) => `<div class="top"><h1>Plans</h1>${catTag(ME.mode)}</div>
+  <div class="seg" role="tablist"><a href="#plans" role="tab" aria-selected="${tab === 'ideas'}">Ideas</a><a href="#plans/map" role="tab" aria-selected="${tab === 'map'}">Map</a><a href="#plans/yours" role="tab" aria-selected="${tab === 'yours'}">Your plans</a></div>`;
+function plansView(arg) {
+  if (arg === 'map') return spotsView();
+  if (arg === 'yours') return yoursView();
+  return ideasView();
+}
+const dirUrl = (p) => p.lat != null ? `https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.place + (p.area ? ', ' + p.area : '') + ', Bangalore')}`;
+function downloadIcs(p, name) {
+  if (!p || !p.chosen) return;
+  const s = new Date(p.chosen), e = new Date(s.getTime() + 2 * 36e5);
+  const f = (x) => x.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  const tx = (v) => String(v).replace(/[\\,;]/g, (c) => '\\' + c).replace(/\n/g, '\\n');
+  const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//PAUSE//Date plan//EN', 'BEGIN:VEVENT', `UID:pause-plan-${p.id}@pause`, `DTSTAMP:${f(new Date())}`,
+    `DTSTART:${f(s)}`, `DTEND:${f(e)}`, `SUMMARY:${tx((p.what || 'Date') + ' with ' + name)}`, `LOCATION:${tx(p.place + (p.area ? ', ' + p.area : '') + ', Bangalore')}`,
+    'DESCRIPTION:Planned on PAUSE. Tell a friend where you’re going.', 'BEGIN:VALARM', 'TRIGGER:-PT2H', 'ACTION:DISPLAY', 'DESCRIPTION:Your date is in 2 hours', 'END:VALARM', 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' })); a.download = 'pause-date.ics';
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+}
+function shareWithFriend(p, name) {
+  if (!p) return;
+  const text = `I’m meeting ${name} (a match from PAUSE) at ${p.place}${p.area ? ', ' + p.area : ''} on ${fmtWhen(p.chosen)}. If you don’t hear from me within an hour after it starts, please call me.`;
+  const num = (ME.trusted_phone || '').replace(/\D/g, '').slice(-10);
+  window.open((num.length === 10 ? 'https://wa.me/91' + num : 'https://wa.me/') + '?text=' + encodeURIComponent(text), '_blank');
+}
+// From an idea or a spot: choose which match to plan with, then open that chat with the planner ready.
+async function planWith(draft) {
+  let chats;
+  try { chats = (await api('/matches')).chats; } catch (x) { toast(x.message); return; }
+  if (!chats.length) {
+    if (await dialog({ title: 'Match with someone first', body: 'Plans happen inside a chat, so you’ll need a match. Your picks are waiting.', ok: 'See my picks', cancel: 'Not now' })) location.hash = 'picks';
+    return;
+  }
+  const sh = openSheet(`<h3>Who with?</h3><p class="hint" style="margin:0 0 12px">${esc(draft.label)}</p>
+    <div class="card list mlist">${chats.map((c) => `<button type="button" data-m="${c.id}">${c.level >= 1 && c.other.photos[0] ? `<img class="av" src="/api/photo/${c.other.photos[0].id}" alt="">` : `<span class="av">${initial(c.other.name)}</span>`}<span><b>${esc(c.other.name)}, ${c.other.age}</b><small>${STEPS[c.level]}</small></span>${I('chev')}</button>`).join('')}</div>`);
+  sh.querySelectorAll('[data-m]').forEach((b) => b.onclick = () => { sessionStorage.setItem('planDraft', JSON.stringify(draft)); closeSheet(); location.hash = 'chat/' + b.dataset.m; });
+}
+async function ideasView() {
+  render(`<main class="screen">${plansHead('ideas')}<p class="hint">Loading ideas…</p></main>${navbar('plans')}`);
+  try { [IDEAS, SPOTS] = await Promise.all([IDEAS || api('/ideas'), SPOTS || api('/spots')]); } catch (x) { toast(x.message); return; }
+  let vibe = sessionStorage.getItem('vibe') || '';
+  const card = (x) => {
+    const where = (x.spots || []).map((id) => SPOTS.find((sp) => sp.id === id)).filter(Boolean).map((sp) => sp.name);
+    return `<article class="idea"><div class="ihead"><b>${esc(x.title)}</b><small>${esc(x.when)}, ${COST[x.cost]}</small></div>
+      <p>${esc(x.blurb)}</p>${where.length ? `<small class="iwhere">${I('pin')}${esc(where.join(', '))}</small>` : ''}
+      <button class="btn ghost" data-idea="${x.id}" type="button">${x.game ? `${I('play')}Start with a match` : `${I('calendar')}Plan with a match`}</button></article>`;
+  };
+  const draw = () => {
+    const list = IDEAS.filter((x) => !vibe || x.vibes.includes(vibe));
+    render(`<main class="screen fade-in">${plansHead('ideas')}
+      <p class="hint" style="margin:-4px 0 12px">Date ideas for Bangalore. Pick one and plan it with a match.</p>
+      <div class="chips xchips" role="group" aria-label="Filter ideas">${VIBES.map(([k, v]) => `<button type="button" class="pill" data-vibe="${k}" aria-pressed="${vibe === k}">${v}</button>`).join('')}</div>
+      <div class="ideas">${list.map(card).join('')}</div>
+    </main>${navbar('plans')}`);
+    document.querySelectorAll('[data-vibe]').forEach((b) => b.onclick = () => { vibe = b.dataset.vibe; sessionStorage.setItem('vibe', vibe); draw(); });
+    document.querySelectorAll('[data-idea]').forEach((b) => b.onclick = () => { const x = IDEAS.find((i) => i.id === b.dataset.idea); planWith({ idea: x.id, game: x.game || '', label: x.title }); });
+  };
+  draw();
+}
+async function yoursView() {
+  render(`<main class="screen">${plansHead('yours')}<p class="hint">Loading your plans…</p></main>${navbar('plans')}`);
+  let list = [];
+  try { list = await api('/plans'); } catch (x) { toast(x.message); }
+  const n = nowS();
+  const t = (p) => new Date(p.chosen).getTime();
+  const groups = [
+    ['Waiting for you', list.filter((p) => p.status === 'proposed' && !p.by_me && !p.closed)],
+    ['Coming up', list.filter((p) => p.status === 'confirmed' && t(p) + 2 * 36e5 > n)],
+    ['How did it go?', list.filter((p) => p.status === 'confirmed' && t(p) + 2 * 36e5 <= n && !p.my_feedback)],
+    ['Waiting for them', list.filter((p) => p.status === 'proposed' && p.by_me && !p.closed)]
+  ].filter((g) => g[1].length);
+  const row = (p) => {
+    const av = p.other.photo ? `<img class="av" src="/api/photo/${p.other.photo}" alt="">` : `<span class="av">${initial(p.other.name)}</span>`;
+    const fb = p.status === 'confirmed' && t(p) + 2 * 36e5 <= n && !p.my_feedback;
+    const open = p.slots.filter((x) => new Date(x).getTime() > n).length;
+    const line = p.status === 'confirmed' ? `${fmtWhen(p.chosen)}, with ${p.other.name}`
+      : p.by_me ? `You offered ${p.slots.length === 1 ? 'one time' : p.slots.length + ' times'}. Waiting for ${p.other.name}.`
+      : open ? `${p.other.name} offered ${open === 1 ? 'one time' : open + ' times'}. Pick one in the chat.` : `${p.other.name}’s times have passed. Suggest new ones.`;
+    const body = `${av}<div class="prt"><b>${esc(p.place)}</b>${p.what ? `<small>${esc(p.what)}</small>` : ''}<span>${esc(line)}</span>
+      ${fb ? `<div class="pacts light"><button class="btn sm" data-fb="again" data-pid="${p.id}">See again</button><button class="btn ghost sm" data-fb="not" data-pid="${p.id}">Not for me</button></div>` : ''}</div>`;
+    return fb || p.closed ? `<div class="planrow">${body}</div>` : `<a class="planrow" href="#chat/${p.match_id}">${body}${I('chev')}</a>`;
+  };
+  render(`<main class="screen fade-in">${plansHead('yours')}
+    ${groups.length ? groups.map(([h, g]) => `<h2 class="section-t">${h}</h2><div class="card plist">${g.map(row).join('')}</div>`).join('')
+    : `<div class="empty">${EMOBJ('kulhad')}<h2>No plans yet</h2><p class="hint">Pick an idea, or tap the calendar button in any chat to suggest a place and a few times.</p><a class="btn ghost" href="#plans" style="margin-top:12px">Browse ideas</a></div>`}
+  </main>${navbar('plans')}`);
+  document.querySelectorAll('[data-fb]').forEach((b) => b.onclick = async () => {
+    try { await api('/plans/' + b.dataset.pid, { method: 'POST', body: { action: 'feedback', value: b.dataset.fb } }); } catch (x) { toast(x.message); return; }
+    if (b.dataset.fb === 'not') { const p = list.find((x) => x.id === +b.dataset.pid); if (await endMatchSheet(p.match_id, p.other)) toast('Match ended. Thanks for telling us.'); return yoursView(); }
+    toast('Thanks. Plan the next one when you’re ready.'); yoursView();
+  });
 }
 
 route();

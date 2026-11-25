@@ -212,6 +212,9 @@ async function overview() {
       ${kpi('Messages, 24 hours', s.messages_24h, `${s.likes_24h} likes in 24 hours`)}
       ${kpi('Location on', s.located, s.users ? Math.round(s.located / s.users * 100) + '% of members' : '')}
       ${kpi('Destiny on', s.destiny_on)}
+      ${kpi('Dates set', s.dates_set, `${s.dates_7d} in 7 days`)}
+      ${kpi('Likes with a note, 7 days', s.notes_7d)}
+      ${kpi('Faded matches, 7 days', s.faded_7d, 'Quiet for 5 days, slot freed')}
     </div>
     <div class="cols">
       <div class="panel"><h2>Last 14 days</h2>
@@ -226,6 +229,10 @@ async function overview() {
       <div class="panel"><h2>Categories (verified)</h2>${cats.map(([k, v]) => `<div class="hbar"><span>${k}</span><div><i style="width:${v / maxC * 100}%"></i></div><b>${v}</b></div>`).join('')}</div>
       <div class="panel"><h2>Cities</h2>${s.cities.map((c) => `<div class="hbar"><span>${esc(c.city)}</span><div><i style="width:${c.n / maxCity * 100}%;background:${c.city === 'Bangalore' ? 'var(--primary)' : 'var(--coral)'}"></i></div><b>${c.n}</b></div>`).join('') || '<p class="hint">No members yet.</p>'}
         <p class="hint" style="margin:10px 0 0">Only Bangalore is live. ${s.waitlist} people are on the waitlist for other cities.</p></div>
+    </div>
+    <div class="cols" style="grid-template-columns:1fr 1fr">
+      <div class="panel"><h2>Where dates are set</h2>${(s.top_spots || []).map((c) => `<div class="hbar"><span>${esc(c.name)}</span><div><i style="width:${c.n / Math.max(1, ...s.top_spots.map((x) => x.n)) * 100}%;background:var(--coral)"></i></div><b>${c.n}</b></div>`).join('') || '<p class="hint">No dates set yet.</p>'}
+        <p class="hint" style="margin:10px 0 0">Confirmed plans per place. This is the number to show a venue before talking about a partnership.</p></div>
     </div>`;
 }
 

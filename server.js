@@ -11,6 +11,7 @@ const sharp = require('sharp');
 const kundli = require('./kundli');
 const destiny = require('./destiny');
 const SPOTS = require('./spots');
+const IDEAS = require('./ideas');
 const help = require('./help');
 
 const PORT = process.env.PORT || 3000;
@@ -22,6 +23,10 @@ const OTP_DEV = process.env.OTP_DEV === '1' && process.env.NODE_ENV !== 'product
 const OTP_ON = !!(MSG91_AUTHKEY && MSG91_TEMPLATE) || OTP_DEV;
 const BRAND = process.env.BRAND_NAME && !/swoosh/i.test(process.env.BRAND_NAME) ? process.env.BRAND_NAME : 'PAUSE';
 const FOCUS = 5;
+// A match with no messages for QUIET_DAYS fades and frees the slot. Either person can add EXTEND_DAYS once per quiet spell.
+const QUIET_DAYS = 5, EXTEND_DAYS = 2;
+const DEADLINE = `COALESCE(m.extended_until, m.last_activity + interval '${QUIET_DAYS} days')`;
+const INTENTS = { chai: 'Chai or coffee', walk: 'A walk', activity: 'Something to do', drinks: 'Drinks' };
 const DROP_HOUR_IST = Math.min(23, Math.max(0, parseInt(process.env.DESTINY_DROP_HOUR || '21', 10) || 0)); // 9 pm IST
 
 const SCHEMA = (process.env.DB_SCHEMA || '').replace(/[^a-z_]/g, '');
@@ -102,6 +107,19 @@ async function migrate() {
   ALTER TABLE users ADD COLUMN IF NOT EXISTS id_verified BOOLEAN DEFAULT FALSE;
   ALTER TABLE users ADD COLUMN IF NOT EXISTS id_pending BOOLEAN DEFAULT FALSE;
   CREATE TABLE IF NOT EXISTS otps (phone TEXT NOT NULL, purpose TEXT NOT NULL, code_hash TEXT NOT NULL, expires_at TIMESTAMPTZ NOT NULL, attempts INT DEFAULT 0, PRIMARY KEY (phone, purpose));
+  ALTER TABLE likes ADD COLUMN IF NOT EXISTS about TEXT DEFAULT '';
+  ALTER TABLE likes ADD COLUMN IF NOT EXISTS note TEXT DEFAULT '';
+  ALTER TABLE likes ADD COLUMN IF NOT EXISTS intent TEXT DEFAULT '';
+  ALTER TABLE likes ADD COLUMN IF NOT EXISTS meta JSONB DEFAULT '{}';
+  ALTER TABLE matches ADD COLUMN IF NOT EXISTS last_activity TIMESTAMPTZ DEFAULT now();
+  ALTER TABLE matches ADD COLUMN IF NOT EXISTS extended_until TIMESTAMPTZ;
+  ALTER TABLE matches ADD COLUMN IF NOT EXISTS extended_by INT;
+  ALTER TABLE matches ADD COLUMN IF NOT EXISTS ended_reason TEXT DEFAULT '';
+  ALTER TABLE matches ADD COLUMN IF NOT EXISTS ended_at TIMESTAMPTZ;
+  CREATE TABLE IF NOT EXISTS plans (id SERIAL PRIMARY KEY, match_id INT REFERENCES matches(id) ON DELETE CASCADE, by_id INT, what TEXT DEFAULT '',
+    place TEXT NOT NULL, area TEXT DEFAULT '', spot_id TEXT DEFAULT '', idea_id TEXT DEFAULT '', slots TIMESTAMPTZ[] NOT NULL, chosen TIMESTAMPTZ,
+    status TEXT DEFAULT 'proposed', feedback JSONB DEFAULT '{}', safe JSONB DEFAULT '{}', created_at TIMESTAMPTZ DEFAULT now());
+  CREATE INDEX IF NOT EXISTS plans_match ON plans(match_id);
   `);
   // One-time: everyone verified before social links existed was verified with an ID.
   const { rows: sv } = await q("SELECT 1 FROM app_meta WHERE key='social_v1'");
@@ -225,12 +243,30 @@ async function createMatch(x, y) {
   const { rows: us } = await q('SELECT id, masked FROM users WHERE id = ANY($1)', [[a, b]]);
   const masked = us.some((u) => u.masked);
   const { rows: m } = await q(`INSERT INTO matches(a_id,b_id,level) VALUES($1,$2,$3)
-    ON CONFLICT (a_id,b_id) DO UPDATE SET closed=false RETURNING id`, [a, b, masked ? 0 : 1]);
+    ON CONFLICT (a_id,b_id) DO UPDATE SET closed=false, last_activity=now(), extended_until=NULL, extended_by=NULL, ended_reason='', ended_at=NULL
+    RETURNING id, (xmax = 0) AS fresh`, [a, b, masked ? 0 : 1]);
   await q('INSERT INTO messages(match_id, body, system) VALUES($1,$2,true)', [m[0].id, masked
-    ? 'It’s mutual. You’re both masked: talk first, and photos open only when you both tap Unmask.'
-    : 'It’s mutual. Numbers stay private until you both choose to share them.']);
+    ? `It’s mutual. You’re both masked: talk first, and photos open only when you both tap Unmask. Say hi within ${QUIET_DAYS} days or the match fades.`
+    : `It’s mutual. Numbers stay private until you both choose to share them. Say hi within ${QUIET_DAYS} days or the match fades.`]);
+  if (m[0].fresh) {
+    // What made each of them pause becomes the first lines of the chat.
+    const { rows: ls } = await q(`SELECT from_id, note, meta FROM likes WHERE kind='like' AND ((from_id=$1 AND to_id=$2) OR (from_id=$2 AND to_id=$1))
+      AND (about<>'' OR note<>'' OR intent<>'') ORDER BY created_at`, [a, b]);
+    for (const l of ls) await q("INSERT INTO messages(match_id, sender_id, body, kind, meta) VALUES($1,$2,$3,'likenote',$4)", [m[0].id, l.from_id, l.note || '', l.meta || {}]);
+  }
   return { id: m[0].id, masked };
 }
+// Any real exchange (a message, a game, a plan) restarts the quiet clock and clears an extension.
+const touch = (mid) => q('UPDATE matches SET last_activity=now(), extended_until=NULL, extended_by=NULL WHERE id=$1', [mid]);
+// Ends matches that have been quiet past their deadline, then lets waiting likes fill the freed slots.
+async function fadeExpired(uid) {
+  const { rows } = await q(`UPDATE matches m SET closed=true, pending_by=NULL, ended_reason='faded', ended_at=now()
+    WHERE NOT m.closed AND ${DEADLINE} < now() ${uid ? 'AND (m.a_id=$1 OR m.b_id=$1)' : ''} RETURNING id, a_id, b_id`, uid ? [uid] : []);
+  for (const r of rows) await q('INSERT INTO messages(match_id, body, system) VALUES($1,$2,true)', [r.id, `This match faded after ${QUIET_DAYS} quiet days. No hard feelings.`]);
+  for (const r of rows) { await resolveWaiting(r.a_id); await resolveWaiting(r.b_id); }
+  return rows.length;
+}
+const endMatch = (mid, reason) => q("UPDATE matches SET closed=true, pending_by=NULL, ended_reason=$2, ended_at=now() WHERE id=$1 AND NOT closed", [mid, reason]);
 // Mutual likes that arrived while one side already had five matches wait here.
 // When a slot frees up, the oldest waiting pair (both sides under five, never matched before) becomes a match.
 async function resolveWaiting(uid) {
@@ -365,7 +401,7 @@ app.post('/api/login', wrap(async (req, res) => {
   res.json({ ok: true });
 }));
 app.post('/api/logout', (req, res) => { req.session = null; res.json({ ok: true }); });
-app.get('/api/me', authW, wrap(async (req, res) => res.json(await meJson(req.user))));
+app.get('/api/me', authW, wrap(async (req, res) => { await fadeExpired(req.user.id); res.json(await meJson(req.user)); }));
 
 // ---------- profile ----------
 app.put('/api/me', authW, wrap(async (req, res) => {
@@ -634,6 +670,8 @@ async function enrich(u, o, myAnswers) {
   const mine = (u.tags || []).map((t) => t.toLowerCase());
   view.shared = (o.tags || []).filter((t) => mine.includes(t.toLowerCase()));
   view.is_new = Date.now() - new Date(o.created_at).getTime() < 7 * 86400000;
+  const { rows: lk } = await q("SELECT note, intent, meta FROM likes WHERE from_id=$1 AND to_id=$2 AND kind='like'", [o.id, u.id]);
+  if (lk[0]) { const mt = lk[0].meta || {}; view.liked_you = { label: mt.label || '', q: mt.q || '', text: mt.text || '', photo: mt.photo || '', note: lk[0].note || '', intent: INTENTS[lk[0].intent] || '' }; }
   if (u.destiny && o.destiny && myAnswers) {
     const s = destiny.score(u.mode, myAnswers, await destinyAnswers(o.id, u.mode));
     if (s) view.destiny = s;
@@ -644,20 +682,29 @@ async function enrich(u, o, myAnswers) {
   }
   return view;
 }
+// The match closest to fading, if it fades within a day.
+async function expiringSoon(uid) {
+  const { rows } = await q(`SELECT m.id, ${DEADLINE} AS deadline, u.name FROM matches m JOIN users u ON u.id = CASE WHEN m.a_id=$1 THEN m.b_id ELSE m.a_id END
+    WHERE (m.a_id=$1 OR m.b_id=$1) AND NOT m.closed AND ${DEADLINE} < now() + interval '1 day' ORDER BY 2 LIMIT 1`, [uid]);
+  return rows[0] ? { id: rows[0].id, name: rows[0].name, deadline: rows[0].deadline } : null;
+}
 app.get('/api/picks', authW, verified, wrap(async (req, res) => {
   const u = req.user;
+  await fadeExpired(u.id);
   const active = await activeCount(u.id);
-  if (!LIVE_CITIES.includes(u.city)) return res.json({ live: false, active, picks: [] });
+  const expiring = await expiringSoon(u.id);
+  if (!LIVE_CITIES.includes(u.city)) return res.json({ live: false, active, expiring, picks: [] });
   const myAnswers = u.destiny ? await destinyAnswers(u.id, u.mode) : null;
   const list = (await candidates(u, 40)).slice(0, 12);
   const out = [];
   for (const o of list) out.push(await enrich(u, o, myAnswers));
-  if (u.destiny) out.sort((a, b) => (b.destiny ? b.destiny.pct : -1) - (a.destiny ? a.destiny.pct : -1));
-  res.json({ live: true, active, focus_full: active >= FOCUS, picks: out.slice(0, 10) });
+  if (u.destiny) out.sort((a, b) => (b.liked_you ? 1 : 0) - (a.liked_you ? 1 : 0) || (b.destiny ? b.destiny.pct : -1) - (a.destiny ? a.destiny.pct : -1));
+  res.json({ live: true, active, focus_full: active >= FOCUS, expiring, picks: out.slice(0, 10) });
 }));
 // Explore: browse a grid instead of one card at a time. Same people and rules as picks.
 app.get('/api/explore', authW, verified, wrap(async (req, res) => {
   const u = req.user;
+  await fadeExpired(u.id);
   const active = await activeCount(u.id);
   if (!LIVE_CITIES.includes(u.city)) return res.json({ live: false, active, people: [] });
   const view = ['near', 'new', 'shared', 'destiny'].includes(req.query.view) ? req.query.view : 'near';
@@ -678,6 +725,7 @@ app.get('/api/explore', authW, verified, wrap(async (req, res) => {
 }));
 // Public date spots for the map. Busy, public places only.
 app.get('/api/spots', authW, (req, res) => res.json(SPOTS));
+app.get('/api/ideas', authW, (req, res) => res.json(IDEAS));
 
 // The 9 pm Destiny drop: one best-fit person a day for people with Destiny on.
 app.get('/api/destiny/drop', authW, verified, wrap(async (req, res) => {
@@ -723,10 +771,29 @@ app.post('/api/like/:id', authW, verified, wrap(async (req, res) => {
   if (to === req.user.id) return err(res, 400, 'Nope');
   const { rows: target } = await q("SELECT * FROM users WHERE id=$1 AND status='verified'", [to]);
   if (!target[0]) return err(res, 404, 'Profile not found');
+  await fadeExpired(req.user.id);
   if (kind === 'like' && (await activeCount(req.user.id)) >= FOCUS) {
     return err(res, 409, `You have ${FOCUS} active matches, the most anyone can have. New matches are paused until you end one.`, { focus_full: true });
   }
-  await q('INSERT INTO likes(from_id,to_id,kind) VALUES($1,$2,$3) ON CONFLICT (from_id,to_id) DO UPDATE SET kind=$3', [req.user.id, to, kind]);
+  // "What made you pause?": the part of their profile you liked, an optional line, and what you'd be up for.
+  let about = '', note = '', intent = '', meta = {};
+  if (kind === 'like') {
+    const t = target[0], a = String(req.body.about || '');
+    note = clean(req.body.note, 140);
+    if (note && hasContact(note)) return err(res, 400, 'Keep numbers and handles out of your note. You can share them once you both agree.');
+    if (note && ABUSE_RE.test(note)) return err(res, 400, 'Keep it kind. Try saying what you liked about them.');
+    if (a === 'prompt' && t.prompt_a) meta = { label: 'answer', q: t.prompt_q, text: t.prompt_a };
+    else if (a === 'bio' && t.bio) meta = { label: 'bio', text: t.bio.length > 160 ? t.bio.slice(0, 157) + '…' : t.bio };
+    else if (/^photo:[0-3]$/.test(a) && !req.user.masked && !t.masked) {
+      const { rows: ph } = await q('SELECT token FROM photos WHERE user_id=$1 AND idx=$2', [t.id, Number(a.slice(6))]);
+      if (ph[0]) meta = { label: 'photo', photo: ph[0].token };
+    }
+    if (meta.label) about = a;
+    intent = INTENTS[req.body.intent] ? req.body.intent : '';
+    if (intent) meta.intent_label = INTENTS[intent];
+  }
+  await q(`INSERT INTO likes(from_id,to_id,kind,about,note,intent,meta) VALUES($1,$2,$3,$4,$5,$6,$7)
+    ON CONFLICT (from_id,to_id) DO UPDATE SET kind=$3, about=$4, note=$5, intent=$6, meta=$7`, [req.user.id, to, kind, about, note, intent, meta]);
   if (kind === 'like') {
     const { rows } = await q("SELECT 1 FROM likes WHERE from_id=$1 AND to_id=$2 AND kind='like'", [to, req.user.id]);
     if (rows[0]) {
@@ -776,6 +843,26 @@ const TOT = [['Chai', 'Coffee'], ['Mountains', 'Beaches'], ['Biryani', 'Pizza'],
   ['Monsoon', 'Winter'], ['Momos', 'Golgappe'], ['Window seat', 'Aisle seat'], ['Goa', 'Manali'], ['Big city', 'Small town'],
   ['Saver', 'Spender'], ['Dance', 'Sing (badly)'], ['Ice cream', 'Kulfi'], ['Ludo', 'Cards'], ['Long chats', 'Short and sweet'],
   ['Slow dance', 'Fast song'], ['Candlelight', 'Neon lights'], ['Late-night drive', 'Late-night call'], ['Surprise me', 'Ask me first'], ['Paneer tikka', 'Dal makhani']];
+const BLR = [['Filter coffee', 'Chai'], ['Indiranagar', 'Koramangala'], ['Masala dosa', 'Idli vada'], ['Metro', 'Auto'], ['Cubbon Park', 'Lalbagh'],
+  ['Nandi Hills sunrise', 'Sleep in'], ['Brewery', 'Darshini'], ['Old Bangalore', 'New Bangalore'], ['Rain on the window', 'Rain on a bike'], ['Church Street books', 'Commercial Street shopping'],
+  ['Weekend in Coorg', 'Weekend in Pondy'], ['Bisi bele bath', 'Biryani'], ['Benne dosa', 'Ghee roast'], ['Working from a café', 'Working from home'], ['Traffic podcast', 'Traffic playlist']];
+const WYR = [['Cook together', 'Eat out every night'], ['Travel with no plan', 'Travel with a perfect plan'], ['Always be 10 minutes early', 'Always be 10 minutes late'],
+  ['Live in the hills', 'Live by the sea'], ['Know every language', 'Play every instrument'], ['Have a great first date', 'Have a great tenth date'],
+  ['Only text', 'Only call'], ['Give up sweets', 'Give up chai'], ['Sing karaoke on a first date', 'Dance on a first date'], ['Read their mind for a day', 'Be invisible for a day'],
+  ['Plan the date', 'Be surprised'], ['A long drive', 'A long walk'], ['Win a quiz', 'Win an argument'], ['Have a pet dog', 'Have a pet cat'], ['Rewatch a favourite', 'Try something new']];
+const DECKS = { tot: ['This or that', TOT], blr: ['This or that: Bangalore', BLR], wyr: ['Would you rather', WYR] };
+const QUESTIONS = ['What’s a small thing that made your week better?', 'What would your perfect Sunday in Bangalore look like?', 'What are you weirdly good at?',
+  'Which song have you played too many times this month?', 'What’s a food you could eat every single day?', 'What’s the best trip you’ve ever taken, and why?',
+  'What did you want to be when you were ten?', 'What’s a show you’d recommend to anyone?', 'What’s something you changed your mind about recently?',
+  'Where do you go when you need to think?', 'What’s a smell that takes you straight back home?', 'What’s the best advice someone gave you?',
+  'What’s your go-to order at a darshini?', 'What would you do with a free Wednesday?', 'What are you looking forward to this month?',
+  'Who in your life makes you laugh the most?', 'What’s a hobby you’d pick up if you had the time?', 'What’s a festival memory you love?',
+  'Mountains, beaches or cities, and what’s the one place you’d go back to?', 'What’s a little thing people do that you find very attractive?',
+  'What’s the most Bangalore thing that has happened to you?', 'What do your friends come to you for?', 'What’s a book or movie that stayed with you?',
+  'What does a good first date look like to you?', 'What’s something on your bucket list for this year?'];
+const PLATFORMS = ['Netflix', 'Prime Video', 'JioHotstar', 'YouTube', 'Other'];
+const GOODBYES = ['It was lovely chatting. I don’t feel a spark, and I wish you the best.',
+  'I’ve met someone I want to focus on. Take care!', 'I don’t think we’re the right fit, but thank you for the chat.'];
 const LEVEL_DONE = ['', 'You both unmasked. Photos are open now.', 'Numbers shared. For a first meeting, choose a busy public place.'];
 
 async function loadMatch(req, res) {
@@ -798,28 +885,58 @@ function viewMeta(msg, meId) {
   if (msg.kind === 'tot') {
     const ans = m.ans || {};
     const done = Object.keys(ans).length >= 2;
-    return { a: m.a, b: m.b, done, mine: ans[meId] || null, ans: done ? ans : undefined };
+    return { a: m.a, b: m.b, title: (DECKS[m.deck] || DECKS.tot)[0], done, mine: ans[meId] || null, ans: done ? ans : undefined };
   }
   if (msg.kind === 'ttl') {
     const show = m.guess !== null && m.guess !== undefined;
     return { by: m.by, st: m.st, guess: show ? m.guess : null, lie: show || m.by === meId ? m.lie : undefined };
   }
+  if (msg.kind === 'qa') {
+    const ans = m.ans || {};
+    const done = Object.keys(ans).length >= 2;
+    return { q: m.q, done, mine: ans[meId] || null, ans: done ? ans : undefined };
+  }
+  if (['likenote', 'song', 'watch', 'plan'].includes(msg.kind)) return m;
   return undefined;
 }
+// Countdown facts for one match, shared by the chat list and the chat.
+async function clockOf(m) {
+  const { rows } = await q(`SELECT ${DEADLINE} AS deadline, m.last_activity,
+      EXISTS (SELECT 1 FROM messages x WHERE x.match_id=m.id AND NOT x.system AND x.kind<>'likenote') AS started
+    FROM matches m WHERE m.id=$1`, [m.id]);
+  const r = rows[0];
+  return { deadline: r.deadline, last_activity: r.last_activity, started: r.started, extended: !!m.extended_until, extended_by: m.extended_by || null,
+    quiet_days: QUIET_DAYS, extend_days: EXTEND_DAYS };
+}
+const IST_FMT = new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+const fmtIst = (d) => IST_FMT.format(new Date(d));
+function planView(p, me) {
+  const sp = SPOTS.find((s) => s.id === p.spot_id);
+  return { id: p.id, match_id: p.match_id, by_me: p.by_id === me, what: p.what, place: p.place, area: p.area, spot_id: p.spot_id,
+    lat: sp ? sp.lat : null, lng: sp ? sp.lng : null, slots: p.slots, chosen: p.chosen, status: p.status,
+    my_feedback: (p.feedback || {})[me] || null, both_again: Object.values(p.feedback || {}).filter((v) => v === 'again').length >= 2,
+    my_safe: !!(p.safe || {})[me], created_at: p.created_at };
+}
 app.get('/api/matches', authW, verified, wrap(async (req, res) => {
-  const { rows } = await q(`SELECT m.*, (SELECT CASE WHEN kind='text' THEN body ELSE body END FROM messages WHERE match_id=m.id ORDER BY id DESC LIMIT 1) AS last
+  await fadeExpired(req.user.id);
+  const { rows } = await q(`SELECT m.*, (SELECT body FROM messages WHERE match_id=m.id AND body<>'' ORDER BY id DESC LIMIT 1) AS last
     FROM matches m WHERE (a_id=$1 OR b_id=$1) AND NOT closed
     AND NOT EXISTS (SELECT 1 FROM blocks b WHERE b.blocker=$1 AND (b.blocked=m.a_id OR b.blocked=m.b_id))
     ORDER BY id DESC`, [req.user.id]);
   const out = [];
-  for (const m of rows) out.push({ ...(await matchView(m, req.user)), last: m.last });
-  res.json({ focus: FOCUS, chats: out });
+  for (const m of rows) out.push({ ...(await matchView(m, req.user)), ...(await clockOf(m)), last: m.last });
+  const { rows: faded } = await q(`SELECT u.name FROM matches m JOIN users u ON u.id = CASE WHEN m.a_id=$1 THEN m.b_id ELSE m.a_id END
+    WHERE (m.a_id=$1 OR m.b_id=$1) AND m.ended_reason='faded' AND m.ended_at > now() - interval '3 days' ORDER BY m.ended_at DESC LIMIT 3`, [req.user.id]);
+  res.json({ focus: FOCUS, server_now: new Date(), chats: out, faded: faded.map((f) => f.name) });
 }));
 app.get('/api/matches/:id', authW, verified, wrap(async (req, res) => {
+  await fadeExpired(req.user.id);
   const m = await loadMatch(req, res); if (!m) return;
   const { rows: msgs } = await q('SELECT id, sender_id, body, system, kind, meta, flag, created_at FROM messages WHERE match_id=$1 ORDER BY id DESC LIMIT 200', [m.id]);
+  const { rows: plans } = await q('SELECT * FROM plans WHERE match_id=$1 ORDER BY id', [m.id]);
   res.json({
-    ...(await matchView(m, req.user)), me: req.user.id,
+    ...(await matchView(m, req.user)), ...(await clockOf(m)), me: req.user.id, server_now: new Date(), ended_reason: m.ended_reason,
+    plans: plans.map((p) => planView(p, req.user.id)),
     messages: msgs.reverse().map((x) => ({ id: x.id, sender_id: x.sender_id, body: x.body, system: x.system, kind: x.kind, flag: x.sender_id !== req.user.id ? x.flag : null, meta: viewMeta(x, req.user.id), created_at: x.created_at }))
   });
 }));
@@ -831,6 +948,18 @@ app.post('/api/matches/:id/messages', authW, verified, wrap(async (req, res) => 
   if (m.level < 2 && hasContact(body)) return err(res, 400, 'Numbers and social handles unlock when you both tap Share numbers.');
   if (!req.body.confirm && ABUSE_RE.test(body)) return err(res, 409, 'This might come across as hurtful. Send anyway?', { nudge: true });
   await q('INSERT INTO messages(match_id, sender_id, body, flag) VALUES($1,$2,$3,$4)', [m.id, req.user.id, body, scamFlag(body)]);
+  await touch(m.id);
+  res.json({ ok: true });
+}));
+// "Need more time": once per quiet spell, in the last two days, either person adds two days.
+app.post('/api/matches/:id/extend', authW, verified, wrap(async (req, res) => {
+  const m = await loadMatch(req, res); if (!m) return;
+  if (m.closed) return err(res, 400, 'This match has ended');
+  if (m.extended_until) return err(res, 400, 'More time was already added. Send a message to restart the clock.');
+  const { deadline } = await clockOf(m);
+  if (new Date(deadline) - Date.now() > EXTEND_DAYS * 864e5) return err(res, 400, `You can add time in the last ${EXTEND_DAYS} days.`);
+  await q(`UPDATE matches SET extended_until = last_activity + interval '${QUIET_DAYS + EXTEND_DAYS} days', extended_by=$2 WHERE id=$1`, [m.id, req.user.id]);
+  await q('INSERT INTO messages(match_id, body, system) VALUES($1,$2,true)', [m.id, `${req.user.name} added ${EXTEND_DAYS} more days.`]);
   res.json({ ok: true });
 }));
 app.post('/api/matches/:id/reveal', authW, verified, wrap(async (req, res) => {
@@ -870,21 +999,62 @@ app.post('/api/matches/:id/game', authW, verified, wrap(async (req, res) => {
     if (st.length !== 3 || st.some((s) => !s) || !(lie >= 0 && lie <= 2)) return err(res, 400, 'Write 3 statements and mark the lie');
     if (m.level < 2 && st.some((x) => hasContact(x))) return err(res, 400, 'Numbers and handles unlock when you both choose to share them.');
     await q("INSERT INTO messages(match_id, sender_id, body, kind, meta) VALUES($1,$2,$3,'ttl',$4)", [m.id, req.user.id, '2 truths, 1 lie', { by: req.user.id, st, lie, guess: null }]);
+  } else if (req.body.type === 'qa') {
+    const { rows } = await q("SELECT meta->>'q' AS q FROM messages WHERE match_id=$1 AND kind='qa'", [m.id]);
+    const used = new Set(rows.map((r) => r.q));
+    const left = QUESTIONS.filter((x) => !used.has(x));
+    const qq = (left.length ? left : QUESTIONS)[Math.floor(Math.random() * (left.length || QUESTIONS.length))];
+    await q("INSERT INTO messages(match_id, sender_id, body, kind, meta) VALUES($1,$2,$3,'qa',$4)", [m.id, req.user.id, 'Question for both: ' + qq, { q: qq, ans: {} }]);
+  } else if (req.body.type === 'song') {
+    const title = clean(req.body.title, 80), artist = clean(req.body.artist, 60), why = clean(req.body.why, 120);
+    if (!title) return err(res, 400, 'Add the song name');
+    if (m.level < 2 && [title, artist, why].some((x) => hasContact(x))) return err(res, 400, 'Numbers and handles unlock when you both choose to share them.');
+    if (/(https?:\/\/|www\.)/i.test(title + artist + why)) return err(res, 400, 'Just the song name and artist. We add the search links.');
+    await q("INSERT INTO messages(match_id, sender_id, body, kind, meta) VALUES($1,$2,$3,'song',$4)", [m.id, req.user.id, `Song swap: ${title}${artist ? ' by ' + artist : ''}`, { by: req.user.id, title, artist, why }]);
+  } else if (req.body.type === 'watch') {
+    const title = clean(req.body.title, 80), platform = PLATFORMS.includes(req.body.platform) ? req.body.platform : 'Other';
+    const at = new Date(req.body.at);
+    if (!title) return err(res, 400, 'Add what you’ll watch');
+    if (m.level < 2 && hasContact(title)) return err(res, 400, 'Numbers and handles unlock when you both choose to share them.');
+    if (!(at.getTime() > Date.now() + 60000) || at.getTime() > Date.now() + 7 * 864e5) return err(res, 400, 'Pick a start time between a minute and a week from now.');
+    await q("INSERT INTO messages(match_id, sender_id, body, kind, meta) VALUES($1,$2,$3,'watch',$4)", [m.id, req.user.id, `Watch together: ${title} on ${platform}`, { by: req.user.id, title, platform, at: at.toISOString(), in: { [req.user.id]: true } }]);
   } else {
+    const deck = DECKS[req.body.deck] ? req.body.deck : 'tot';
+    const list = DECKS[deck][1];
     const { rows } = await q("SELECT meta->>'a' AS a FROM messages WHERE match_id=$1 AND kind='tot'", [m.id]);
     const used = new Set(rows.map((r) => r.a));
-    const pool2 = TOT.filter((p) => !used.has(p[0]));
-    const [a, b] = (pool2.length ? pool2 : TOT)[Math.floor(Math.random() * (pool2.length || TOT.length))];
-    await q("INSERT INTO messages(match_id, sender_id, body, kind, meta) VALUES($1,$2,$3,'tot',$4)", [m.id, req.user.id, `This or that: ${a} or ${b}?`, { a, b, ans: {} }]);
+    const pool2 = list.filter((p) => !used.has(p[0]));
+    const [a, b] = (pool2.length ? pool2 : list)[Math.floor(Math.random() * (pool2.length || list.length))];
+    await q("INSERT INTO messages(match_id, sender_id, body, kind, meta) VALUES($1,$2,$3,'tot',$4)", [m.id, req.user.id, `${DECKS[deck][0]}: ${a} or ${b}?`, { a, b, deck, ans: {} }]);
   }
+  await touch(m.id);
   res.json({ ok: true });
 }));
 app.post('/api/matches/:id/game/:mid', authW, verified, wrap(async (req, res) => {
   const m = await loadMatch(req, res); if (!m) return;
+  if (m.closed) return err(res, 400, 'This chat is closed');
   const { rows } = await q('SELECT * FROM messages WHERE id=$1 AND match_id=$2', [req.params.mid, m.id]);
   const g = rows[0];
-  if (!g || !['tot', 'ttl'].includes(g.kind)) return err(res, 404, 'Game not found');
+  if (!g || !['tot', 'ttl', 'qa', 'watch'].includes(g.kind)) return err(res, 404, 'Game not found');
   const meta = g.meta;
+  await touch(m.id);
+  if (g.kind === 'qa') {
+    const a = clean(req.body.answer, 300);
+    if (!a) return err(res, 400, 'Write your answer');
+    if (meta.ans[req.user.id]) return err(res, 400, 'You already answered');
+    if (m.level < 2 && hasContact(a)) return err(res, 400, 'Numbers and handles unlock when you both choose to share them.');
+    meta.ans[req.user.id] = a;
+    await q('UPDATE messages SET meta=$2 WHERE id=$1', [g.id, meta]);
+    if (Object.keys(meta.ans).length >= 2) await q('INSERT INTO messages(match_id, body, system) VALUES($1,$2,true)', [m.id, 'You both answered. Answers are open.']);
+    return res.json({ ok: true });
+  }
+  if (g.kind === 'watch') {
+    if (meta.in[req.user.id]) return err(res, 400, 'You’re already in');
+    meta.in[req.user.id] = true;
+    await q('UPDATE messages SET meta=$2 WHERE id=$1', [g.id, meta]);
+    await q('INSERT INTO messages(match_id, body, system) VALUES($1,$2,true)', [m.id, `${req.user.name} is in for ${meta.title}.`]);
+    return res.json({ ok: true });
+  }
   if (g.kind === 'tot') {
     if (!['a', 'b'].includes(req.body.choice)) return err(res, 400, 'Pick one');
     if (meta.ans[req.user.id]) return err(res, 400, 'You already picked');
@@ -907,17 +1077,105 @@ app.post('/api/matches/:id/game/:mid', authW, verified, wrap(async (req, res) =>
 }));
 app.post('/api/matches/:id/close', authW, verified, wrap(async (req, res) => {
   const m = await loadMatch(req, res); if (!m) return;
-  await q('UPDATE matches SET closed=true, pending_by=NULL WHERE id=$1', [m.id]);
+  if (m.closed) return res.json({ ok: true });
+  const note = GOODBYES[parseInt(req.body.note, 10)];
+  if (note) await q('INSERT INTO messages(match_id, sender_id, body) VALUES($1,$2,$3)', [m.id, req.user.id, note]);
+  await endMatch(m.id, 'ended');
+  await q("UPDATE plans SET status='cancelled' WHERE match_id=$1 AND status='proposed'", [m.id]);
   await q('INSERT INTO messages(match_id, body, system) VALUES($1,$2,true)', [m.id, 'This match has ended. Wishing you well.']);
   await resolveWaiting(m.a_id); await resolveWaiting(m.b_id);
   res.json({ ok: true });
+}));
+
+// ---------- date plans ----------
+// One open suggestion per chat: a place and up to three times. The other person picks a time, suggests others, or says not this time.
+app.post('/api/matches/:id/plans', authW, verified, wrap(async (req, res) => {
+  const m = await loadMatch(req, res); if (!m) return;
+  if (m.closed) return err(res, 400, 'This match has ended');
+  { const w = limited('plan:' + req.user.id, 30, 24 * 60 * 60000); if (w) return tooMany(res, w); }
+  const b = req.body || {};
+  const sp = SPOTS.find((s) => s.id === b.spot_id), idea = IDEAS.find((x) => x.id === b.idea_id);
+  let place = sp ? sp.name : clean(b.place, 80), area = sp ? sp.area : clean(b.area, 40);
+  const what = idea ? idea.title : clean(b.what, 60);
+  if (!place) return err(res, 400, 'Choose a place');
+  if (m.level < 2 && [place, area, what].some((x) => hasContact(x))) return err(res, 400, 'Numbers and handles unlock when you both choose to share them.');
+  if (/(https?:\/\/|www\.)/i.test(place + area + what)) return err(res, 400, 'Just the name of the place. Directions are added for you.');
+  const now = Date.now();
+  const slots = [...new Set((Array.isArray(b.slots) ? b.slots : []).map((s) => new Date(s).getTime()))]
+    .filter((t) => Number.isFinite(t) && t > now + 30 * 60000 && t < now + 30 * 864e5).sort((x, y) => x - y).slice(0, 3);
+  if (!slots.length) return err(res, 400, 'Offer at least one time, from half an hour to 30 days from now.');
+  await q("UPDATE plans SET status='cancelled' WHERE match_id=$1 AND status='proposed'", [m.id]);
+  const { rows } = await q(`INSERT INTO plans(match_id, by_id, what, place, area, spot_id, idea_id, slots) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+    [m.id, req.user.id, what, place, area, sp ? sp.id : '', idea ? idea.id : '', slots.map((t) => new Date(t))]);
+  await q("INSERT INTO messages(match_id, sender_id, body, kind, meta) VALUES($1,$2,$3,'plan',$4)", [m.id, req.user.id, `Date idea: ${what ? what + ' at ' : ''}${place}`, { plan_id: rows[0].id }]);
+  await touch(m.id);
+  res.json(planView(rows[0], req.user.id));
+}));
+app.post('/api/plans/:id', authW, verified, wrap(async (req, res) => {
+  const { rows } = await q(`SELECT p.*, m.a_id, m.b_id, m.closed FROM plans p JOIN matches m ON m.id=p.match_id
+    WHERE p.id=$1 AND (m.a_id=$2 OR m.b_id=$2)`, [req.params.id, req.user.id]);
+  const p = rows[0];
+  if (!p) return err(res, 404, 'Plan not found');
+  const me = req.user.id, action = req.body.action, now = Date.now();
+  const say = (t) => q('INSERT INTO messages(match_id, body, system) VALUES($1,$2,true)', [p.match_id, t]);
+  if (action === 'accept' || action === 'decline') {
+    if (p.closed) return err(res, 400, 'This match has ended');
+    if (p.status !== 'proposed') return err(res, 400, 'This plan isn’t open any more');
+    if (p.by_id === me) return err(res, 400, 'The other person picks a time');
+    if (action === 'accept') {
+      const slot = p.slots[parseInt(req.body.slot, 10)];
+      if (!slot) return err(res, 400, 'Pick one of the times');
+      if (new Date(slot).getTime() < now) return err(res, 400, 'That time has passed. Suggest a new one.');
+      await q("UPDATE plans SET status='confirmed', chosen=$2 WHERE id=$1", [p.id, slot]);
+      await say(`Date set: ${p.what ? p.what + ' at ' : ''}${p.place}, ${fmtIst(slot)}. Share the plan with a friend before you go.`);
+    } else {
+      await q("UPDATE plans SET status='declined' WHERE id=$1", [p.id]);
+      await say(`${req.user.name} can’t make that one. Either of you can suggest another plan.`);
+    }
+    await touch(p.match_id);
+  } else if (action === 'cancel') {
+    if (!['proposed', 'confirmed'].includes(p.status)) return err(res, 400, 'This plan isn’t open any more');
+    if (p.status === 'proposed' && p.by_id !== me) return err(res, 400, 'Tap “Not this time” instead');
+    await q("UPDATE plans SET status='cancelled' WHERE id=$1", [p.id]);
+    await say(`${req.user.name} cancelled the plan${p.status === 'confirmed' ? ' for ' + fmtIst(p.chosen) : ''}.`);
+    if (!p.closed) await touch(p.match_id);
+  } else if (action === 'safe') {
+    if (p.status !== 'confirmed' || new Date(p.chosen).getTime() - now > 3600000) return err(res, 400, 'You can mark yourself home safe once the date has started.');
+    await q('UPDATE plans SET safe = safe || $2::jsonb WHERE id=$1', [p.id, JSON.stringify({ [me]: new Date() })]);
+  } else if (action === 'feedback') {
+    const v = req.body.value;
+    if (!['again', 'not', 'report'].includes(v)) return err(res, 400, 'Pick one');
+    if (p.status !== 'confirmed' || new Date(p.chosen).getTime() + 2 * 3600000 > now) return err(res, 400, 'You can tell us how it went after the date.');
+    if ((p.feedback || {})[me]) return err(res, 400, 'You already told us');
+    await q('UPDATE plans SET feedback = feedback || $2::jsonb WHERE id=$1', [p.id, JSON.stringify({ [me]: v })]);
+    const other = (p.feedback || {})[p.a_id === me ? p.b_id : p.a_id];
+    if (v === 'again' && other === 'again' && !p.closed) await say('You both want to meet again.');
+  } else return err(res, 400, 'Unknown action');
+  const { rows: out } = await q('SELECT * FROM plans WHERE id=$1', [p.id]);
+  res.json(planView(out[0], me));
+}));
+// Your plans across chats: suggestions waiting, upcoming dates, and check-ins after a date.
+app.get('/api/plans', authW, verified, wrap(async (req, res) => {
+  const me = req.user.id;
+  const { rows } = await q(`SELECT p.*, m.level, m.closed, CASE WHEN m.a_id=$1 THEN m.b_id ELSE m.a_id END AS other_id FROM plans p JOIN matches m ON m.id=p.match_id
+    WHERE (m.a_id=$1 OR m.b_id=$1) AND (
+      (p.status='proposed' AND NOT m.closed) OR
+      (p.status='confirmed' AND p.chosen > now() - interval '7 days'))
+    ORDER BY COALESCE(p.chosen, p.created_at)`, [me]);
+  const out = [];
+  for (const p of rows) {
+    const { rows: us } = await q('SELECT name FROM users WHERE id=$1', [p.other_id]);
+    const ph = p.level >= 1 ? (await photoIds(p.other_id))[0] : null;
+    out.push({ ...planView(p, me), other: { name: us[0] ? us[0].name : '', photo: ph ? ph.id : null }, closed: p.closed });
+  }
+  res.json(out);
 }));
 
 // ---------- safety ----------
 app.post('/api/block/:id', authW, wrap(async (req, res) => {
   await q('INSERT INTO blocks VALUES($1,$2) ON CONFLICT DO NOTHING', [req.user.id, req.params.id]);
   const m = await matchBetween(req.user.id, parseInt(req.params.id, 10));
-  if (m) { await q('UPDATE matches SET closed=true WHERE id=$1', [m.id]); await resolveWaiting(req.user.id); await resolveWaiting(parseInt(req.params.id, 10)); }
+  if (m) { await endMatch(m.id, 'blocked'); await resolveWaiting(req.user.id); await resolveWaiting(parseInt(req.params.id, 10)); }
   res.json({ ok: true });
 }));
 app.post('/api/report/:id', authW, wrap(async (req, res) => {
@@ -925,7 +1183,7 @@ app.post('/api/report/:id', authW, wrap(async (req, res) => {
   await q('INSERT INTO reports(reporter, reported, reason) VALUES($1,$2,$3)', [req.user.id, req.params.id, clean(req.body.reason, 500)]);
   await q('INSERT INTO blocks VALUES($1,$2) ON CONFLICT DO NOTHING', [req.user.id, req.params.id]);
   const m = await matchBetween(req.user.id, parseInt(req.params.id, 10));
-  if (m) { await q('UPDATE matches SET closed=true WHERE id=$1', [m.id]); await resolveWaiting(req.user.id); await resolveWaiting(parseInt(req.params.id, 10)); }
+  if (m) { await endMatch(m.id, 'reported'); await resolveWaiting(req.user.id); await resolveWaiting(parseInt(req.params.id, 10)); }
   res.json({ ok: true });
 }));
 app.delete('/api/me', authW, wrap(async (req, res) => {
@@ -1004,13 +1262,19 @@ app.get('/api/admin/stats', admin, wrap(async (req, res) => {
     (SELECT count(*) FROM users WHERE created_at > now() - interval '7 days')::int AS signups_7d,
     (SELECT count(*) FROM matches WHERE created_at > now() - interval '1 day')::int AS matches_24h,
     (SELECT count(*) FROM messages WHERE NOT system AND created_at > now() - interval '1 day')::int AS messages_24h,
-    (SELECT count(*) FROM likes WHERE kind='like' AND created_at > now() - interval '1 day')::int AS likes_24h`);
+    (SELECT count(*) FROM likes WHERE kind='like' AND created_at > now() - interval '1 day')::int AS likes_24h,
+    (SELECT count(*) FROM likes WHERE kind='like' AND created_at > now() - interval '7 days' AND (note<>'' OR about<>''))::int AS notes_7d,
+    (SELECT count(*) FROM plans WHERE status='confirmed')::int AS dates_set,
+    (SELECT count(*) FROM plans WHERE status='confirmed' AND created_at > now() - interval '7 days')::int AS dates_7d,
+    (SELECT count(*) FROM matches WHERE ended_reason='faded' AND ended_at > now() - interval '7 days')::int AS faded_7d`);
   const { rows: days } = await q(`SELECT to_char(d::date, 'YYYY-MM-DD') AS day,
       (SELECT count(*) FROM users u WHERE u.created_at::date = d::date)::int AS signups,
       (SELECT count(*) FROM matches m WHERE m.created_at::date = d::date)::int AS matches
     FROM generate_series(current_date - 13, current_date, interval '1 day') d ORDER BY d`);
   const { rows: cities } = await q("SELECT city, count(*)::int AS n FROM users WHERE city<>'' GROUP BY city ORDER BY n DESC LIMIT 6");
-  res.json({ ...rows[0], days, cities });
+  // Dates set per place: the number to show a venue before any partnership talk.
+  const { rows: sp } = await q("SELECT COALESCE(NULLIF(spot_id,''), 'other') AS id, max(place) AS place, count(*)::int AS n FROM plans WHERE status='confirmed' GROUP BY 1 ORDER BY n DESC LIMIT 6");
+  res.json({ ...rows[0], days, cities, top_spots: sp.map((r) => ({ name: r.id === 'other' ? 'Other places' : r.place, n: r.n })) });
 }));
 app.get('/api/admin/members', admin, wrap(async (req, res) => {
   const term = clean(req.query.q, 60).toLowerCase(), st = ['new', 'pending', 'verified', 'rejected', 'banned'].includes(req.query.status) ? req.query.status : '';
@@ -1092,7 +1356,7 @@ app.post('/api/admin/ban/:uid', admin, wrap(async (req, res) => {
   const { rows } = await q('SELECT id_hash FROM users WHERE id=$1', [req.params.uid]);
   if (rows[0] && rows[0].id_hash) await q('INSERT INTO banned_ids(id_hash) VALUES($1) ON CONFLICT DO NOTHING', [rows[0].id_hash]);
   await q("UPDATE users SET status='banned' WHERE id=$1", [req.params.uid]);
-  await q('UPDATE matches SET closed=true WHERE a_id=$1 OR b_id=$1', [req.params.uid]);
+  await q("UPDATE matches SET closed=true, ended_reason='banned', ended_at=now() WHERE (a_id=$1 OR b_id=$1) AND NOT closed", [req.params.uid]);
   await q('UPDATE reports SET resolved=true WHERE reported=$1', [req.params.uid]);
   res.json({ ok: true });
 }));
@@ -1100,7 +1364,8 @@ app.post('/api/admin/ban/:uid', admin, wrap(async (req, res) => {
 // ---------- pages ----------
 app.get('/api/config', (req, res) => res.json({
   brand: BRAND, live_cities: LIVE_CITIES, focus: FOCUS, otp: OTP_ON, id_types: Object.keys(ID_FORMATS), modes: MODE_NAMES, religions: RELIGIONS, diets: DIETS,
-  nakshatras: kundli.NAK, rashis: kundli.RASHI, help_chips: help.CHIPS
+  nakshatras: kundli.NAK, rashis: kundli.RASHI, help_chips: help.CHIPS,
+  intents: INTENTS, platforms: PLATFORMS, goodbyes: GOODBYES, quiet_days: QUIET_DAYS, extend_days: EXTEND_DAYS
 }));
 app.use('/vendor/leaflet', express.static(path.join(__dirname, 'node_modules', 'leaflet', 'dist'), { maxAge: '7d' }));
 app.use(express.static(path.join(__dirname, 'public'), { extensions: ['html'] }));
@@ -1109,5 +1374,8 @@ app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'adm
 
 app.use((e, req, res, next) => { console.error(e); err(res, 500, 'Something went wrong'); });
 
-migrate().then(() => app.listen(PORT, () => console.log(`${BRAND} running on :${PORT}`)))
+migrate().then(() => {
+  app.listen(PORT, () => console.log(`${BRAND} running on :${PORT}`));
+  setInterval(() => fadeExpired().catch((e) => console.error('fade sweep', e.message)), 10 * 60000);
+})
   .catch((e) => { console.error('Migration failed', e); process.exit(1); });

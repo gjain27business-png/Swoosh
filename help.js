@@ -1,6 +1,6 @@
 // PAUSE — "Ask PAUSE" help bot. Rule-based: answers rules, how-tos and account status.
 // It never reads anyone's chats. Anything it can't answer goes to a human via a support ticket.
-const CHIPS = ['How does Masked work?', 'What is Destiny?', 'Why only five matches?', 'Is my verification done?', 'Kundli matching', 'Safety and emergencies', 'Report someone', 'Talk to a person'];
+const CHIPS = ['How does Masked work?', 'Why only five matches?', 'Why did my match fade?', 'How do plans work?', 'What is Destiny?', 'Is my verification done?', 'Safety and emergencies', 'Report someone', 'Talk to a person'];
 
 const STATUS = {
   new: 'You haven’t finished step 2 yet. Finish your profile, then link your Instagram or LinkedIn. A real person checks it, usually within a few hours. An ID check is optional.',
@@ -26,9 +26,9 @@ const INTENTS = [
   { k: ['horoscope', 'zodiac', 'sun sign', 'star sign'], a: () =>
     'Zodiac is optional in Steady and After Dark. Turn on “Show my zodiac sign” in your profile and your sign appears on your card. It’s never used to hide anyone.' },
   { k: ['emergency', 'emergencies', 'unsafe', 'danger', 'help me', 'sos', '112', 'scared', 'police'], a: () =>
-    'If you’re in danger, call 112 now. In the app, Safety has a button that sends your live location to your trusted person on WhatsApp, and a date plan you can share before meeting.' },
+    'If you’re in danger, call 112 now. In the app, Profile → Safety has a button that sends your live location to your trusted person on WhatsApp, and a date plan you can share before meeting.' },
   { k: ['safe', 'safety', 'meet', 'first date', 'date plan', 'trusted'], a: () =>
-    'Before a first meet: meet in a busy public place, share your date plan with a trusted person from the Safety tab, and keep the chat on PAUSE until you trust them. Numbers stay hidden until you both tap Share numbers.' },
+    'Before a first meet: meet in a busy public place, set the date with the planner in your chat and tap Share with a friend (or use Profile → Safety), and keep the chat on PAUSE until you trust them. Numbers stay hidden until you both tap Share numbers.' },
   { k: ['report', 'harass', 'abuse', 'fake', 'block', 'creep', 'rude'], a: () =>
     'Open the chat, tap ⋮ and choose Report or Block. Reporting also blocks them. A real person reviews every report; a ban blocks their ID forever, so they can’t make a new account.' },
   { k: ['scam', 'money', 'upi', 'crypto', 'investment', 'otp', 'loan'], a: () =>
@@ -38,9 +38,9 @@ const INTENTS = [
   { k: ['number', 'phone number', 'contact', 'instagram', 'whatsapp', 'share number'], a: () =>
     'Numbers and social handles stay hidden. When you’re both ready, either of you taps Share numbers and the other accepts. Until then, numbers and handles can’t be sent in chat.' },
   { k: ['pause mode', 'take a pause', 'hide profile', 'break', 'invisible', 'snooze'], a: () =>
-    'Take a pause: in Safety, switch on “Take a pause”. You disappear from picks; your existing chats continue. Switch it off anytime.' },
+    'Take a pause: open Profile, then Safety, and switch on “Take a pause”. You disappear from picks; your existing chats continue. Switch it off anytime.' },
   { k: ['delete', 'remove account', 'close account', 'deactivate'], a: () =>
-    'Safety → Delete my account. It removes your profile, photos and chats permanently. If you only need a break, use Take a pause instead.' },
+    'Profile → Safety → Delete my account. It removes your profile, photos and chats permanently. If you only need a break, use Take a pause instead.' },
   { k: ['price', 'cost', 'pay', 'free', 'premium', 'subscription', 'refund', 'charge'], a: () =>
     'PAUSE is free while we launch in Bangalore. If we add paid features later, we’ll tell you before anything is charged, and refunds will follow the policy on the website.' },
   { k: ['city', 'cities', 'bangalore', 'delhi', 'mumbai', 'pune', 'hyderabad', 'available', 'where'], a: (u, cities) =>
@@ -49,8 +49,14 @@ const INTENTS = [
     'We keep the minimum: your profile, photos and chats. ID photos and selfies are deleted after verification. You can delete everything anytime. Details are in the Privacy Policy.' },
   { k: ['grievance', 'complaint', 'officer', 'legal', 'rules', 'terms', 'regulation'], a: () =>
     'Our rules are in the Terms (18+ only, one person one account, no harassment, no money requests, no explicit content). For complaints you can reach our grievance officer — details are on the Grievance page; we acknowledge within 24 hours.' },
-  { k: ['game', 'this or that', 'truth', 'lie', 'play'], a: () =>
-    'In any chat, tap the game button: “This or that” (answers show once you’ve both picked) or “Two truths, one lie”. It’s the easiest way to break the ice before you unmask.' },
+  { k: ['game', 'games', 'this or that', 'truth', 'lie', 'play', 'would you rather', 'song', 'watch together', 'watch party', 'netflix', 'bored', 'nothing to say', 'what to say'], a: () =>
+    'In any chat, tap the dice button. You can play This or that (also a Bangalore edition and Would you rather), Two truths and one lie, or Questions for both (answers open when you’ve both replied). Song swap shares a song with search links. Watch together sets a countdown so you both press play at the same moment on your own Netflix, Prime Video or JioHotstar. There are no calls on PAUSE yet.' },
+  { k: ['fade', 'faded', 'fades', 'fading', 'match fade', 'expire', 'expired', 'expiring', 'countdown', 'disappeared', 'match gone', 'lost my match', 'more time', '5 days', 'five days'], a: () =>
+    'A match fades after 5 days with no messages from either of you, so quiet matches don’t hold your five slots. A new match has 5 days to say hi, and any message, game or plan restarts the clock. In the last 2 days, either of you can tap “Need more time” once for 2 more days. When a match fades, the slot frees up.' },
+  { k: ['plan', 'plans', 'planner', 'date idea', 'date ideas', 'where to go', 'calendar', 'home safe', 'how was it'], a: () =>
+    'Plans has date ideas, a map of busy public spots, and your plans. In a chat, tap the calendar button to suggest a place and up to three times; they pick one. A set date shows directions, Add to calendar and Share with a friend. After the date, only you see “How was it?”.' },
+  { k: ['note', 'like note', 'what made you pause', 'comment', 'liked my'], a: () =>
+    'When you like someone, you can tap what made you pause (their answer, bio or a photo), add a line, and say what you’d be up for. They see it on your card, and it opens your chat if you match.' },
   { k: ['human', 'agent', 'person', 'talk to', 'support', 'contact us', 'customer care'], a: () =>
     'Sure — write your question below and tap Send to our team. A person replies on your registered number or email.', human: true }
 ];
@@ -62,7 +68,8 @@ function answer(text, user, cities) {
   let best = null, bestScore = 0;
   for (const it of INTENTS) {
     let s = 0;
-    for (const k of it.k) if (t.includes(' ' + norm(k)) || t.includes(norm(k) + ' ')) s += k.length > 4 ? 2 : 1;
+    // Short keys (like "id") must be whole words, so "did" doesn't count as "id".
+    for (const k of it.k) { const n = norm(k); if (n.length <= 3 ? t.includes(' ' + n + ' ') : (t.includes(' ' + n) || t.includes(n + ' '))) s += k.length > 4 ? 2 : 1; }
     if (s > bestScore) { best = it; bestScore = s; }
   }
   if (!best) {
