@@ -1,5 +1,5 @@
 // PAUSE — verified, slow dating for India (MVP)
-// Categories: Steady, Forever, After Dark. Switches in every category: Masked and Destiny. Focus 5 for everyone.
+// Categories: Steady, Forever, After Dark. Switches in every category: Masked and Destiny. Five matches max for everyone: at 5 active matches, new matches pause.
 const express = require('express');
 const path = require('path');
 const crypto = require('crypto');
@@ -152,6 +152,34 @@ const verified = (req, res, next) => (req.user.status === 'verified' ? next() : 
 async function activeCount(uid) {
   const { rows } = await q('SELECT count(*)::int AS n FROM matches WHERE (a_id=$1 OR b_id=$1) AND NOT closed', [uid]);
   return rows[0].n;
+}
+async function createMatch(x, y) {
+  const [a, b] = [Math.min(x, y), Math.max(x, y)];
+  const { rows: us } = await q('SELECT id, masked FROM users WHERE id = ANY($1)', [[a, b]]);
+  const masked = us.some((u) => u.masked);
+  const { rows: m } = await q(`INSERT INTO matches(a_id,b_id,level) VALUES($1,$2,$3)
+    ON CONFLICT (a_id,b_id) DO UPDATE SET closed=false RETURNING id`, [a, b, masked ? 0 : 1]);
+  await q('INSERT INTO messages(match_id, body, system) VALUES($1,$2,true)', [m[0].id, masked
+    ? 'It’s mutual. You’re both masked: talk first, and photos open only when you both tap Unmask.'
+    : 'It’s mutual. Numbers stay private until you both choose to share them.']);
+  return { id: m[0].id, masked };
+}
+// Mutual likes that arrived while one side already had five matches wait here.
+// When a slot frees up, the oldest waiting pair (both sides under five, never matched before) becomes a match.
+async function resolveWaiting(uid) {
+  for (;;) {
+    if ((await activeCount(uid)) >= FOCUS) return;
+    const { rows } = await q(`SELECT l1.to_id AS other FROM likes l1
+      JOIN likes l2 ON l2.from_id = l1.to_id AND l2.to_id = l1.from_id AND l2.kind = 'like'
+      JOIN users o ON o.id = l1.to_id AND o.status = 'verified'
+      WHERE l1.from_id = $1 AND l1.kind = 'like'
+        AND NOT EXISTS (SELECT 1 FROM matches m WHERE m.a_id = LEAST($1, l1.to_id) AND m.b_id = GREATEST($1, l1.to_id))
+        AND NOT EXISTS (SELECT 1 FROM blocks bl WHERE (bl.blocker = $1 AND bl.blocked = l1.to_id) OR (bl.blocker = l1.to_id AND bl.blocked = $1))
+        AND (SELECT count(*) FROM matches m2 WHERE (m2.a_id = l1.to_id OR m2.b_id = l1.to_id) AND NOT m2.closed) < ${FOCUS}
+      ORDER BY GREATEST(l1.created_at, l2.created_at) LIMIT 1`, [uid]);
+    if (!rows[0]) return;
+    await createMatch(uid, rows[0].other);
+  }
 }
 async function destinyAnswers(uid, mode) {
   const { rows } = await q('SELECT answers FROM destiny_answers WHERE user_id=$1 AND mode=$2', [uid, mode]);
@@ -460,20 +488,20 @@ app.post('/api/like/:id', authW, verified, wrap(async (req, res) => {
   const { rows: target } = await q("SELECT * FROM users WHERE id=$1 AND status='verified'", [to]);
   if (!target[0]) return err(res, 404, 'Profile not found');
   if (kind === 'like' && (await activeCount(req.user.id)) >= FOCUS) {
-    return err(res, 409, `Focus ${FOCUS}: you’re already talking to ${FOCUS} people. Close a chat politely to meet someone new.`, { focus_full: true });
+    return err(res, 409, `You have ${FOCUS} active matches, the most anyone can have. New matches are paused until you end one.`, { focus_full: true });
   }
   await q('INSERT INTO likes(from_id,to_id,kind) VALUES($1,$2,$3) ON CONFLICT (from_id,to_id) DO UPDATE SET kind=$3', [req.user.id, to, kind]);
   if (kind === 'like') {
     const { rows } = await q("SELECT 1 FROM likes WHERE from_id=$1 AND to_id=$2 AND kind='like'", [to, req.user.id]);
-    if (rows[0] && (await activeCount(to)) < FOCUS) {
-      const [a, b] = [Math.min(to, req.user.id), Math.max(to, req.user.id)];
-      const masked = req.user.masked || target[0].masked;
-      const { rows: m } = await q(`INSERT INTO matches(a_id,b_id,level) VALUES($1,$2,$3)
-        ON CONFLICT (a_id,b_id) DO UPDATE SET closed=false RETURNING id`, [a, b, masked ? 0 : 1]);
-      await q('INSERT INTO messages(match_id, body, system) VALUES($1,$2,true)', [m[0].id, masked
-        ? 'It’s mutual. You’re both masked: talk first, and photos open only when you both tap Unmask.'
-        : 'It’s mutual. Numbers stay private until you both choose to share them.']);
-      return res.json({ matched: true, match_id: m[0].id, masked });
+    if (rows[0]) {
+      const { rows: blk } = await q('SELECT 1 FROM blocks WHERE (blocker=$1 AND blocked=$2) OR (blocker=$2 AND blocked=$1)', [req.user.id, to]);
+      if (blk[0]) return res.json({ matched: false });
+      if ((await activeCount(to)) < FOCUS) {
+        const m = await createMatch(req.user.id, to);
+        return res.json({ matched: true, match_id: m.id, masked: m.masked });
+      }
+      // They already have five matches: the like waits and becomes a match when they free a slot.
+      return res.json({ matched: false, waiting: true });
     }
   }
   res.json({ matched: false });
@@ -626,7 +654,8 @@ app.post('/api/matches/:id/game/:mid', authW, verified, wrap(async (req, res) =>
 app.post('/api/matches/:id/close', authW, verified, wrap(async (req, res) => {
   const m = await loadMatch(req, res); if (!m) return;
   await q('UPDATE matches SET closed=true, pending_by=NULL WHERE id=$1', [m.id]);
-  await q('INSERT INTO messages(match_id, body, system) VALUES($1,$2,true)', [m.id, 'This chat was closed. Wishing you well.']);
+  await q('INSERT INTO messages(match_id, body, system) VALUES($1,$2,true)', [m.id, 'This match has ended. Wishing you well.']);
+  await resolveWaiting(m.a_id); await resolveWaiting(m.b_id);
   res.json({ ok: true });
 }));
 
@@ -634,14 +663,14 @@ app.post('/api/matches/:id/close', authW, verified, wrap(async (req, res) => {
 app.post('/api/block/:id', authW, wrap(async (req, res) => {
   await q('INSERT INTO blocks VALUES($1,$2) ON CONFLICT DO NOTHING', [req.user.id, req.params.id]);
   const m = await matchBetween(req.user.id, parseInt(req.params.id, 10));
-  if (m) await q('UPDATE matches SET closed=true WHERE id=$1', [m.id]);
+  if (m) { await q('UPDATE matches SET closed=true WHERE id=$1', [m.id]); await resolveWaiting(req.user.id); await resolveWaiting(parseInt(req.params.id, 10)); }
   res.json({ ok: true });
 }));
 app.post('/api/report/:id', authW, wrap(async (req, res) => {
   await q('INSERT INTO reports(reporter, reported, reason) VALUES($1,$2,$3)', [req.user.id, req.params.id, clean(req.body.reason, 500)]);
   await q('INSERT INTO blocks VALUES($1,$2) ON CONFLICT DO NOTHING', [req.user.id, req.params.id]);
   const m = await matchBetween(req.user.id, parseInt(req.params.id, 10));
-  if (m) await q('UPDATE matches SET closed=true WHERE id=$1', [m.id]);
+  if (m) { await q('UPDATE matches SET closed=true WHERE id=$1', [m.id]); await resolveWaiting(req.user.id); await resolveWaiting(parseInt(req.params.id, 10)); }
   res.json({ ok: true });
 }));
 app.delete('/api/me', authW, wrap(async (req, res) => {

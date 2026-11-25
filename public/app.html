@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>PAUSE</title>
-<meta name="description" content="PAUSE — verified, unhurried dating. Five conversations at a time. Stay masked until you both choose to unmask.">
+<meta name="description" content="PAUSE — verified, unhurried dating. Up to five matches at a time. Stay masked until you both choose to unmask.">
 <link rel="icon" href="/icon.svg">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#062433">
@@ -211,20 +211,24 @@
 .celebrate .btn:not(.ghost):hover,.qwrap .btn:not(.ghost):hover,.night .btn:not(.ghost):hover{background:var(--coral-hover)}
 .authhero::before{content:'';position:absolute;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(255,107,87,.35),transparent 68%);right:-60px;top:-80px}
 .ahs{position:relative;width:330px;height:226px}
-.ahs .a1,.ahs .a2{position:absolute;bottom:-6px;display:block}
-.ahs .a1{left:0;width:172px;height:182px}.ahs .a2{right:0;width:182px;height:194px}
+.ahs>span:not(.stk){position:absolute;display:block}
+.ahs .o1{left:8px;top:92px;width:150px;height:154px;transform:rotate(-8deg)}
+.ahs .o2{right:14px;top:70px;width:132px;height:136px;transform:rotate(7deg)}
+.ahs .o3{left:146px;top:150px;width:74px;height:76px;transform:rotate(12deg)}
+.ahs .o4{left:132px;top:40px;width:58px;height:60px;transform:rotate(-10deg)}
+.pobj{display:block;width:100%;height:100%}
+.emobj{display:block;width:112px;height:115px;margin:0 auto 6px}
 .ahs .stk{position:absolute;font-size:14px;padding:8px 12px}
 .ahs .s1{left:0;top:30px;--r:-8deg}.ahs .s2{right:0;top:4px;--r:7deg}
 .pairwrap{position:relative;padding:18px 26px}
 .pairwrap .stk{position:absolute;font-size:14px}
 .pairwrap .cs1{left:-14px;top:0;--r:-10deg}.pairwrap .cs2{right:-24px;bottom:2px;--r:6deg}
-.empty .emav{margin-bottom:-4px}
 @media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important}}
 </style>
 </head>
 <body>
 <div id="root"></div>
-<script src="/avatars.js"></script>
+<script src="/objects.js"></script>
 <script src="/ask.js"></script>
 <script src="/app.js"></script>
 </body>

@@ -27,7 +27,7 @@
   .ask-t textarea,.ask-t input{min-height:44px;padding:10px 12px;border-radius:10px;border:1px solid #C8DBD7;font:inherit;font-size:15px}
   .ask-t button{border-radius:12px}
   .ask :focus-visible{outline:2px solid #FFC94D;outline-offset:2px}`;
-  const DEFAULT_CHIPS = ['How does Masked work?', 'What is Destiny?', 'Why only five chats?', 'Is my verification done?', 'Kundli matching', 'Safety and emergencies', 'Report someone', 'Talk to a person'];
+  const DEFAULT_CHIPS = ['How does Masked work?', 'What is Destiny?', 'Why only five matches?', 'Is my verification done?', 'Kundli matching', 'Safety and emergencies', 'Report someone', 'Talk to a person'];
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   async function post(path, body) {
     const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), credentials: 'same-origin' });

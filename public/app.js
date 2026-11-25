@@ -41,8 +41,8 @@ const P = {
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'
 };
 const I = (name, extra = '') => `<svg class="ic ${extra}" viewBox="0 0 24 24" aria-hidden="true">${P[name] || ''}</svg>`;
-const AV = (who, opt) => (window.PauseAvatar ? PauseAvatar.svg(who, opt) : '');
-const EMAV = (who, opt) => `<span class="emav" aria-hidden="true">${AV(who, opt)}</span>`;
+const OBJ = (name) => (window.PauseObj ? PauseObj.svg(name) : '');
+const EMOBJ = (name) => `<span class="emobj" aria-hidden="true">${OBJ(name)}</span>`;
 const WORDMARK = '<span class="wordmark light"><i class="mk" aria-hidden="true"><b></b><b></b></i>pause</span>';
 
 const CAT = {
@@ -140,9 +140,9 @@ window.addEventListener('hashchange', route);
 function authView(mode) {
   const signup = mode === 'signup';
   render(`<main class="screen fade-in" style="padding-top:24px">
-    <div class="authhero">${WORDMARK}<div class="ahs" aria-hidden="true"><span class="a1">${AV('ananya')}</span><span class="a2">${AV('kabir')}</span><span class="stk mint s1">${I('heart')}It’s mutual!</span><span class="stk s2">Chai pe chalein?</span></div></div>
+    <div class="authhero">${WORDMARK}<div class="ahs" aria-hidden="true"><span class="o1">${OBJ('mask')}</span><span class="o2">${OBJ('kulhad')}</span><span class="o3">${OBJ('heart')}</span><span class="o4">${OBJ('star')}</span><span class="stk mint s1">${I('heart')}It’s mutual!</span><span class="stk s2">Chai pe chalein?</span></div></div>
     <h1 style="font-size:42px;margin:28px 0 12px">${signup ? 'Hit pause on swiping.' : 'Welcome back.'}</h1>
-    <p class="hint" style="font-size:15px;margin:0 0 24px">${signup ? 'Every member is ID-verified. You keep five conversations at a time, and photos stay masked until you both choose to unmask. Live in Bangalore and Delhi NCR.' : 'Log in with your mobile number.'}</p>
+    <p class="hint" style="font-size:15px;margin:0 0 24px">${signup ? 'Every member is ID-verified. You can have up to five matches at a time, and photos stay masked until you both choose to unmask. Live in Bangalore and Delhi NCR.' : 'Log in with your mobile number.'}</p>
     <form id="f">
       <div class="field"><label for="phone">Mobile number</label><input id="phone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="10-digit number" required></div>
       <div class="field"><label for="pw">Password</label><input id="pw" type="password" autocomplete="${signup ? 'new-password' : 'current-password'}" minlength="8" required placeholder="At least 8 characters"></div>
@@ -402,13 +402,13 @@ async function picksView() {
   };
   const screen = (inner) => { render(`<main class="screen fade-in">${head()}${panel}${inner}</main>${navbar('picks')}`); bindPanel(); };
   if (!data.live) {
-    return screen(`<div class="empty">${EMAV('isha')}<h2>PAUSE isn’t in ${esc(ME.city)} yet</h2>
+    return screen(`<div class="empty">${EMOBJ('pin')}<h2>PAUSE isn’t in ${esc(ME.city)} yet</h2>
       <p class="hint">We’re live in ${esc(CFG.live_cities.join(' and '))}. Your verified profile is saved, and your picks start the day your city opens.</p>
       <a class="btn ghost" href="#profile" style="margin-top:12px">Change city</a></div>`);
   }
   if (data.focus_full) {
-    return screen(`<div class="empty">${EMAV('meera')}<h2>You have five chats open</h2>
-      <p class="hint">Everyone on PAUSE keeps up to ${CFG.focus} conversations at a time. Close one politely to make room for someone new.</p>
+    return screen(`<div class="empty">${EMOBJ('pause')}<h2>You have five matches</h2>
+      <p class="hint">That’s the most anyone on PAUSE can have, so new matches are paused for now. End one from its chat and new matches open up again.</p>
       <a class="btn" href="#chats" style="margin-top:12px">Go to chats</a></div>`);
   }
   const picks = data.picks;
@@ -416,7 +416,7 @@ async function picksView() {
   const show = () => {
     const p = picks[i];
     if (!p) {
-      return screen(`<div class="empty">${EMAV('kabir')}<h2>That’s everyone for today</h2>
+      return screen(`<div class="empty">${EMOBJ('moon')}<h2>That’s everyone for today</h2>
         <p class="hint">PAUSE shows a few verified, compatible people each day instead of an endless stack. New picks arrive tomorrow, or widen your age range to see more now.</p>
         <a class="btn ghost" href="#profile" style="margin-top:12px">Adjust preferences</a></div>`);
     }
@@ -426,7 +426,7 @@ async function picksView() {
         <button class="round" id="pass" aria-label="Pass on ${esc(p.name)}">${I('x')}</button>
         <button class="btn" id="like" style="flex:1;min-height:56px;border-radius:28px">${p.masked ? 'Like, stay masked' : 'Like'}</button>
       </div>
-      <p class="hint" style="text-align:center">If ${esc(p.name)} likes you back, a chat opens. You’re using ${data.active} of ${CFG.focus} chats.</p>`);
+      <p class="hint" style="text-align:center">If ${esc(p.name)} likes you back, it’s a match. You have ${data.active} of ${CFG.focus} matches.</p>`);
     const card = el('card');
     const act = async (kind) => {
       card.classList.add(kind === 'like' ? 'out-right' : 'out-left');
@@ -550,13 +550,13 @@ async function chatsView() {
   const slots = Array.from({ length: F }, (_, k) => { const c = list[k]; return c ? `<i>${c.level >= 1 && c.other.photos[0] ? `<img src="/api/photo/${c.other.photos[0].id}" alt="">` : initial(c.other.name)}</i>` : '<i class="free"></i>'; }).join('');
   const waiting = (m) => m.pending_by && m.pending_by !== ME.id;
   render(`<main class="screen fade-in"><div class="top"><h1>Chats</h1>${catTag(ME.mode)}</div>
-    <div class="focus"><div class="slots" aria-hidden="true">${slots}</div><div><b>${list.length} of ${F} chats open</b><small>${list.length >= F ? 'Close one to meet someone new.' : 'Everyone keeps up to five at a time.'}</small></div></div>
+    <div class="focus"><div class="slots" aria-hidden="true">${slots}</div><div><b>${list.length} of ${F} matches</b><small>${list.length >= F ? 'New matches are paused. End one to make room.' : 'New matches pause when you reach five.'}</small></div></div>
     ${list.length ? `<div class="card list" style="overflow:hidden">${list.map((m) => `<a href="#chat/${m.id}">
       ${m.other.photos[0] ? `<img class="av" src="/api/photo/${m.other.photos[0].id}" alt="">` : `<span class="av">${initial(m.other.name)}</span>`}
       <div style="flex:1;min-width:0"><div style="font-weight:600;display:flex;align-items:center;gap:8px">${esc(m.other.name)}, ${m.other.age}${waiting(m) ? '<span class="dot" aria-label="Waiting for you"></span>' : ''}</div>
       <div class="hint" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${waiting(m) ? (m.level === 0 ? `${esc(m.other.name)} is ready to unmask` : `${esc(m.other.name)} wants to share numbers`) : esc(m.last || '')}</div></div>
       <span class="step s${m.level}">${STEPS[m.level]}</span></a>`).join('')}</div>`
-    : `<div class="empty">${EMAV('ananya')}<h2>No chats yet</h2><p class="hint">When someone you like likes you back, your chat appears here. You can keep ${F} open at a time.</p><a class="btn ghost" href="#picks" style="margin-top:12px">See my picks</a></div>`}
+    : `<div class="empty">${EMOBJ('kulhad')}<h2>No matches yet</h2><p class="hint">When someone you like likes you back, they appear here. You can have up to ${F} matches at a time.</p><a class="btn ghost" href="#picks" style="margin-top:12px">See my picks</a></div>`}
   </main>${navbar('chats', list.filter(waiting).length)}`);
 }
 
@@ -678,13 +678,13 @@ async function chatView(id) {
     el('mbtn').onclick = () => {
       if (document.querySelector('.menu')) { document.querySelector('.menu').remove(); return; }
       const menu = document.createElement('div'); menu.className = 'menu';
-      menu.innerHTML = `<button data-a="date">${I('calendar')}Share date plan</button><button data-a="close">${I('minus')}Close chat politely</button><button data-a="report">${I('flag')}Report</button><button data-a="block">${I('block')}Block</button>`;
+      menu.innerHTML = `<button data-a="date">${I('calendar')}Share date plan</button><button data-a="close">${I('minus')}End match politely</button><button data-a="report">${I('flag')}Report</button><button data-a="block">${I('block')}Block</button>`;
       document.querySelector('.night').appendChild(menu);
       menu.onclick = async (e) => {
         const b = e.target.closest('button'); if (!b) return;
         const a = b.dataset.a;
         if (a === 'date') { location.hash = 'safety'; return; }
-        if (a === 'close' && confirm('Close this chat? It frees one of your five chats.')) { await api(`/matches/${id}/close`, { method: 'POST' }); location.hash = 'chats'; }
+        if (a === 'close' && confirm('End this match? The chat closes and one of your five match slots frees up.')) { await api(`/matches/${id}/close`, { method: 'POST' }); location.hash = 'chats'; }
         if (a === 'report') { const reason = prompt('What happened? A member of our team reviews every report.'); if (reason !== null) { await api('/report/' + o.id, { method: 'POST', body: { reason } }); toast('Reported and blocked'); location.hash = 'chats'; } }
         if (a === 'block' && confirm('Block ' + o.name + '?')) { await api('/block/' + o.id, { method: 'POST' }); location.hash = 'chats'; }
       };

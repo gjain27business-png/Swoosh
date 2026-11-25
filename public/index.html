@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PAUSE — Hit pause on swiping</title>
-<meta name="description" content="PAUSE is dating for people who are done with endless swiping. Every member is ID-verified, you keep five conversations at a time, and photos open only when you both say yes. Live in Bangalore and Delhi NCR.">
+<meta name="description" content="PAUSE is dating for people who are done with endless swiping. Every member is ID-verified, you can have up to five matches at a time, and photos open only when you both say yes. Live in Bangalore and Delhi NCR.">
 <meta property="og:title" content="PAUSE — Hit pause on swiping">
-<meta property="og:description" content="Meet someone worth slowing down for. Verified members, five conversations at a time, photos open only when you both say yes.">
+<meta property="og:description" content="Meet someone worth slowing down for. Verified members, five matches at a time, photos open only when you both say yes.">
 <meta name="theme-color" content="#0B4A5C">
 <link rel="icon" href="/icon.svg">
 <link rel="manifest" href="/manifest.json">
@@ -80,10 +80,6 @@ h2.big{font-size:clamp(38px,4.6vw,60px);line-height:1;margin:0 0 18px;letter-spa
 .cat p{font-size:17px;line-height:1.6;margin:0 0 22px;color:var(--muted);max-width:40ch}
 .cat ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px}
 .cat li{font-size:14px;font-weight:700;padding:8px 14px;border-radius:999px;background:rgba(255,255,255,.75);color:var(--heading)}
-.couple{display:flex}
-.couple span{width:92px;height:92px;border-radius:46px;overflow:hidden;border:4px solid rgba(255,255,255,.9);display:block;box-shadow:0 16px 30px -18px rgba(4,30,44,.5)}
-.couple span+span{margin-left:-22px}
-.couple svg{width:100%;height:100%;display:block}
 .adnote{margin-top:22px;padding:18px 22px;border-radius:18px;background:var(--midnight);color:#E0F0EC;font-size:15px;display:flex;gap:12px;align-items:center}
 .adnote .ic{color:var(--sun);flex:none}
 .band{background:var(--night);color:#fff;position:relative;overflow:hidden}
@@ -111,11 +107,6 @@ h2.big{font-size:clamp(38px,4.6vw,60px);line-height:1;margin:0 0 18px;letter-spa
 .steps p{margin:0;color:var(--muted);font-size:15px;line-height:1.6}
 .five{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:56px;align-items:center;background:linear-gradient(135deg,#08304A,#0B4A5C);color:#fff;border-radius:36px;padding:60px}
 .five h2{color:#fff;font-size:clamp(36px,3.9vw,54px)}.five .sub{color:#CFE6E2}
-.slots{display:flex;gap:12px;flex-wrap:wrap}
-.slots span{width:76px;height:76px;border-radius:38px;overflow:hidden;display:block;border:3px solid rgba(255,255,255,.85)}
-.slots span.free{border:2px dashed rgba(255,255,255,.45)}
-.slots svg{width:100%;height:100%;display:block}
-.slots small{display:block;width:100%;font-size:14px;color:#CFE6E2;margin-top:8px}
 .kundli{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:64px;align-items:center}
 .kcard{background:linear-gradient(160deg,#FFF8E3,#FFE7A8);border-radius:30px;padding:34px;display:grid;grid-template-columns:clamp(96px,28%,150px) minmax(0,1fr);gap:28px;align-items:center}
 .kcard>svg{width:100%;height:auto}
@@ -157,15 +148,24 @@ footer a{text-decoration:none}footer a:hover{color:var(--primary)}
 /* stickers and avatars */
 .stack .stk{position:absolute;z-index:6;font-size:15px}
 .hs1{right:-5%;top:14px;--r:6deg}
-.hs2{left:-6%;top:268px;--r:-7deg;padding:6px 14px 6px 6px}
-.hs2 .av2 span{width:30px;height:30px;border-width:2px}
+.hs2{left:-6%;top:268px;--r:-7deg}
 .hs3{left:2%;top:-14px;--r:-6deg}
-.hpeek{position:absolute;z-index:5;left:-9%;bottom:-8px;width:190px;height:203px}
 .cstk{position:absolute;right:26px;top:30px;--r:6deg;font-size:15px}
 .cat.forever .cstk{--r:-5deg}
-.crew{display:flex;justify-content:center;align-items:flex-end;gap:4px;margin:0 auto 34px;flex-wrap:wrap}
-.crew span{width:150px;height:160px;display:block}
-.crew span:nth-child(even){width:136px;height:145px}
+.crew{display:flex;justify-content:center;align-items:flex-end;gap:10px;margin:0 auto 34px;flex-wrap:wrap}
+.objs{display:flex;align-items:flex-end;margin:-6px 0 10px -6px}.objs span{width:108px;height:110px;display:block;transform:rotate(-6deg)}.objs span+span{margin-left:-22px;width:86px;height:88px;transform:rotate(10deg)}
+.hobj{position:absolute;z-index:5;left:-3%;bottom:18px;width:124px;height:128px;transform:rotate(-8deg)}
+.dcard{position:relative}.dobj{position:absolute;right:-6px;top:-34px;width:78px;height:80px;transform:rotate(10deg)}
+.ba span i{position:absolute;left:8px;bottom:7px;font-style:normal;font-size:11px;font-weight:700;color:#fff;text-shadow:0 1px 6px rgba(4,30,44,.6)}
+.ba span.blur i{filter:none}
+.meter{display:flex;align-items:center;flex-wrap:wrap;position:relative;max-width:540px}
+.meter span[data-obj]{width:80px;height:82px;display:block;margin-right:-8px}
+.meter span[data-obj]:nth-child(odd){transform:rotate(-6deg)}.meter span[data-obj]:nth-child(even){transform:rotate(6deg)}
+.meter .pz{width:116px;height:118px;margin-left:12px;transform:rotate(-4deg)!important}
+.meter .mstk{position:absolute;right:-8px;top:-34px;--r:6deg;font-size:15px}
+.meter small{display:block;width:100%;font-size:14px;color:#CFE6E2;margin-top:12px}
+.crew span{width:128px;height:131px;display:block}
+.crew span:nth-child(odd){transform:rotate(-8deg) translateY(6px)}.crew span:nth-child(even){transform:rotate(8deg);width:110px;height:113px}
 .sf:nth-child(3n+2) .i{background:#DDF8EE}.sf:nth-child(3n) .i{background:#FFF3C4}
 @media (max-width:1060px){.kcard{grid-template-columns:1fr}.kcard>svg{width:110px}}
 @media (max-width:960px){
@@ -174,7 +174,7 @@ footer a{text-decoration:none}footer a:hover{color:var(--primary)}
   header.site nav{display:none}header.site .cta{margin-left:auto}
   .hero{padding:120px 0 80px}
   .stack{height:560px;max-width:520px;margin:0 auto;width:100%}
-  .hpeek{display:none}
+  .hobj{display:none}
 }
 @media (max-width:600px){
   .wrap{padding:0 20px}
@@ -183,7 +183,7 @@ footer a{text-decoration:none}footer a:hover{color:var(--primary)}
   .steps,.safety{grid-template-columns:minmax(0,1fr)}
   .stack{height:540px}.pcard{left:50%;width:230px}.pcard.front{width:270px}.pcard.back1{transform:translateX(-96%) rotate(-9deg) scale(.82)}.pcard.back2{transform:translateX(-4%) rotate(9deg) scale(.82)}
   .hs1{right:-2%;top:-18px}.hs2{left:-2%;top:210px}.hs3{display:none}
-  .crew span{width:104px;height:111px}.crew span:nth-child(even){width:96px;height:102px}.cstk{right:18px;top:22px;font-size:13px}
+  .crew span{width:76px;height:78px}.crew span:nth-child(even){width:66px;height:68px}.meter span[data-obj]{width:50px;height:52px}.meter .pz{width:72px;height:74px}.dobj{width:60px;height:62px;top:-26px}.cstk{right:18px;top:22px;font-size:13px}
   .cat,.duo>div{padding:28px}.five{padding:34px}.cat h3{font-size:40px}
   .helpbtn span{display:none}.helpbtn{padding:0 8px}
   .faces span{width:64px;height:64px}
@@ -219,19 +219,19 @@ footer a{text-decoration:none}footer a:hover{color:var(--primary)}
   <div class="wrap">
     <div>
       <h1>Hit pause on swiping.</h1>
-      <p class="lead"><b>Meet someone worth slowing down for.</b> Every member is ID-verified, you keep five conversations at a time, and photos open only when you both say yes.</p>
+      <p class="lead"><b>Meet someone worth slowing down for.</b> Every member is ID-verified, you can have up to five matches at a time, and photos open only when you both say yes.</p>
       <div style="display:flex;gap:12px;flex-wrap:wrap"><a class="cta cream" href="/app#signup">Join PAUSE</a><a class="cta ghost" href="#how">See how it works</a></div>
       <div class="trust">
         <span><svg class="ic"><use href="#i-id"/></svg>ID-verified members</span>
-        <span><svg class="ic"><use href="#i-chat"/></svg>Five chats at a time</span>
+        <span><svg class="ic"><use href="#i-chat"/></svg>Five matches, max</span>
         <span><svg class="ic"><use href="#i-mask"/></svg>Unmask together</span>
       </div>
     </div>
     <div class="stack" aria-label="Example profiles">
-      <div class="pcard back1" aria-hidden="true"><div class="art" data-pav="kabir" data-frame="portrait"></div><div class="nm"><b>Kabir, 30</b><span><svg class="ic"><use href="#i-check"/></svg>Verified, Delhi NCR</span></div></div>
-      <div class="pcard back2" aria-hidden="true"><div class="art" data-pav="meera" data-frame="portrait"></div><div class="nm"><b>Meera, 28</b><span><svg class="ic"><use href="#i-check"/></svg>Verified, Bangalore</span></div></div>
+      <div class="pcard back1" aria-hidden="true"><div class="art" data-pav="kabir" data-frame="portrait"></div><div class="nm"><b>Kabir, 26</b><span><svg class="ic"><use href="#i-check"/></svg>Verified, Delhi NCR</span></div></div>
+      <div class="pcard back2" aria-hidden="true"><div class="art" data-pav="meera" data-frame="portrait"></div><div class="nm"><b>Meera, 24</b><span><svg class="ic"><use href="#i-check"/></svg>Verified, Bangalore</span></div></div>
       <div class="pcard front" id="demo">
-        <div class="art" data-pav="ananya" data-frame="portrait" data-label="Illustrated portrait of Ananya"><span class="mlab"><svg class="ic"><use href="#i-mask"/></svg>Masked</span><div class="nm"><b>Ananya, 27</b><span><svg class="ic"><use href="#i-check"/></svg>Verified, Bangalore</span></div></div>
+        <div class="art" data-pav="ananya" data-frame="portrait" data-label="Illustrated portrait of Ananya"><span class="mlab"><svg class="ic"><use href="#i-mask"/></svg>Masked</span><div class="nm"><b>Ananya, 25</b><span><svg class="ic"><use href="#i-check"/></svg>Verified, Bangalore</span></div></div>
         <div class="drows" aria-live="polite">
           <div class="drow"><b>You</b><span class="st" id="dYou">Masked</span><button class="dbtn" id="dBtn"><svg class="ic"><use href="#i-mask"/></svg>Unmask</button></div>
           <div class="drow"><b>Ananya</b><span class="st" id="dThem">Masked</span></div>
@@ -239,9 +239,9 @@ footer a{text-decoration:none}footer a:hover{color:var(--primary)}
         <p class="dcap" id="dCap">Try it. Photos open only when you both tap Unmask.</p>
       </div>
       <span class="stk sun hs1" aria-hidden="true"><svg class="ic"><use href="#i-star"/></svg>Destiny drops at 9 pm</span>
-      <span class="stk mint hs2" aria-hidden="true"><span class="av2"><span data-pav="zoya" data-frame="circle"></span><span data-pav="rohan" data-frame="circle"></span></span>It’s mutual!</span>
+      <span class="stk mint hs2" aria-hidden="true"><svg class="ic"><use href="#i-heart"/></svg>It’s mutual!</span>
       <span class="stk hs3" aria-hidden="true">Chai pe chalein?</span>
-      <span class="hpeek" aria-hidden="true" data-pav="arjun"></span>
+      <span class="hobj" aria-hidden="true" data-obj="kulhad"></span>
     </div>
   </div>
 </section>
@@ -250,9 +250,9 @@ footer a{text-decoration:none}footer a:hover{color:var(--primary)}
   <h2 class="big">Know what you’re here for.</h2>
   <p class="sub">You only meet people who want the same thing you do. If that changes, you can switch once a week.</p>
   <div class="cats">
-    <div class="cat steady"><span class="stk sun cstk" aria-hidden="true">No ghosting</span><div class="couple" aria-hidden="true"><span data-pav="zoya" data-frame="circle"></span><span data-pav="arjun" data-frame="circle"></span></div><h3>Steady</h3><p>Dating that’s going somewhere. Get to know someone properly before deciding anything.</p>
+    <div class="cat steady"><span class="stk sun cstk" aria-hidden="true">No ghosting</span><div class="objs" aria-hidden="true"><span data-obj="kulhad"></span><span data-obj="heart"></span></div><h3>Steady</h3><p>Dating that’s going somewhere. Get to know someone properly before deciding anything.</p>
       <ul><li>Picks on shared interests</li><li>Optional zodiac sign</li><li>Masked or not, your call</li></ul></div>
-    <div class="cat forever"><span class="stk mint cstk" aria-hidden="true">Shaadi-minded</span><div class="couple" aria-hidden="true"><span data-pav="meera" data-frame="circle"></span><span data-pav="rohan" data-frame="circle"></span></div><h3>Forever</h3><p>Marriage-minded. For people ready to talk about timelines, families and the life after.</p>
+    <div class="cat forever"><span class="stk mint cstk" aria-hidden="true">Shaadi-minded</span><div class="objs" aria-hidden="true"><span data-obj="rings"></span><span data-obj="star"></span></div><h3>Forever</h3><p>Marriage-minded. For people ready to talk about timelines, families and the life after.</p>
       <ul><li>Optional kundli score</li><li>Religion and food preferences</li><li>Same-religion filter</li></ul></div>
   </div>
   <div class="adnote"><svg class="ic"><use href="#i-moon"/></svg><span>A third category, After Dark, is inside the app for casual dating between verified adults, under the same rules.</span></div>
@@ -262,9 +262,9 @@ footer a{text-decoration:none}footer a:hover{color:var(--primary)}
   <h2 class="big">Two settings, in every category.</h2>
   <p class="sub">Both are optional. Turn them on or off whenever you like.</p>
   <div class="duo">
-    <div><h3 style="margin-top:0">Masked</h3><p>Your photos stay hidden while you talk. When you’re both ready, you each tap Unmask, and only then do photos open. Sharing numbers works the same way.</p>
-      <div class="ba" aria-hidden="true"><span class="blur" data-pav="arjun" data-frame="portrait"></span><div class="ar"><svg class="ic" style="width:22px;height:22px"><use href="#i-heart"/></svg>You both<br>tap Unmask</div><span data-pav="arjun" data-frame="portrait"></span></div></div>
-    <div><h3 style="margin-top:0">Destiny</h3><p>Answer 12 short questions for your category. Your picks show a match score, and each night at 9 pm you receive one considered match with the reasons you fit.</p>
+    <div class="dcard"><span class="dobj" aria-hidden="true" data-obj="mask"></span><h3 style="margin-top:0">Masked</h3><p>Your photos stay hidden while you talk. When you’re both ready, you each tap Unmask, and only then do photos open. Sharing numbers works the same way.</p>
+      <div class="ba" aria-hidden="true"><span class="blur" data-pav="isha" data-frame="portrait"><i>Isha, 24</i></span><div class="ar"><svg class="ic" style="width:22px;height:22px"><use href="#i-heart"/></svg>You both<br>tap Unmask</div><span data-pav="isha" data-frame="portrait"><i>Isha, 24</i></span></div></div>
+    <div class="dcard"><span class="dobj" aria-hidden="true" data-obj="star"></span><h3 style="margin-top:0">Destiny</h3><p>Answer 12 short questions for your category. Your picks show a match score, and each night at 9 pm you receive one considered match with the reasons you fit.</p>
       <ul class="why"><li><svg class="ic"><use href="#i-star"/></svg>Kids: you both said “Want them”</li><li><svg class="ic"><use href="#i-star"/></svg>After an argument: you both “Talk it out right away”</li><li><svg class="ic"><use href="#i-star"/></svg>Marriage timeline: you both said “In 1–2 years”</li></ul></div>
   </div>
 </div></section>
@@ -281,9 +281,12 @@ footer a{text-decoration:none}footer a:hover{color:var(--primary)}
 
 <section class="s" style="background:var(--pearl);padding-top:0"><div class="wrap">
   <div class="five">
-    <div><h2 class="big">Five conversations. For everyone.</h2>
-      <p class="sub">Men and women alike keep up to five chats open at a time. Nobody is buried in messages and nobody is left on read. Close a chat politely and a place opens for someone new.</p></div>
-    <div class="slots" role="img" aria-label="Three of five chats in use"><span data-pav="zoya" data-frame="circle"></span><span data-pav="kabir" data-frame="circle"></span><span data-pav="meera" data-frame="circle"></span><span class="free"></span><span class="free"></span><small>Three chats open, two places free</small></div>
+    <div><h2 class="big">Five matches. Then we pause.</h2>
+      <p class="sub">Everyone, men and women alike, can have up to five active matches. At five, new matches stop: you leave everyone’s picks until you end one. Nobody gets buried in likes, and nobody is left on read.</p></div>
+    <div class="meter" role="img" aria-label="Five of five matches. New matches are paused.">
+      <span data-obj="heart"></span><span data-obj="heart" data-colors="#FFE592,#F5A524"></span><span data-obj="heart" data-colors="#A6F3DB,#2FB78F"></span><span data-obj="heart" data-colors="#D6CCFF,#8F78F0"></span><span data-obj="heart" data-colors="#A8E6EC,#2BA9B8"></span>
+      <span class="pz" data-obj="pause"></span><span class="stk sun mstk">New matches paused</span>
+      <small>5 of 5 matches. End one and you’re back in picks.</small></div>
   </div>
 </div></section>
 
@@ -325,7 +328,7 @@ footer a{text-decoration:none}footer a:hover{color:var(--primary)}
   <h2 class="big">Questions.</h2>
   <details><summary>Is PAUSE free?</summary><p>Yes, while we launch in Bangalore and Delhi NCR. If we add paid features later, you’ll see the price before anything is charged.</p></details>
   <details><summary>Who can see my photos?</summary><p>With Masked on, nobody until you and the other person both tap Unmask. With Masked off, verified members in your category can see them. Every photo shown to someone else carries a watermark with their account code.</p></details>
-  <details><summary>Why only five chats?</summary><p>Five real conversations are worth more than fifty half-hearted ones. The limit is the same for everyone. Close a chat politely and a place opens.</p></details>
+  <details><summary>Why only five matches?</summary><p>Five real matches are worth more than fifty you never reply to. The limit is the same for everyone. At five, new matches pause. End one politely and you’re back in picks.</p></details>
   <details><summary>What happens to my ID?</summary><p>A member of our team checks your ID photo and selfie, then both are deleted. We keep only your verified status and a one-way code of your ID number, so one ID can’t open two accounts.</p></details>
   <details><summary>Do I need a kundli?</summary><p>No. Kundli is optional and used only in Forever. Destiny is optional too, and you can use PAUSE without either.</p></details>
   <details><summary>Can my family or colleagues see me?</summary><p>Not if you don’t want them to. Add their numbers or your company to the contact shield and you won’t be shown to each other.</p></details>
@@ -333,7 +336,7 @@ footer a{text-decoration:none}footer a:hover{color:var(--primary)}
 </div></section>
 
 <section class="final"><div class="wrap">
-  <div class="crew" aria-hidden="true"><span data-pav="meera"></span><span data-pav="kabir"></span><span data-pav="ananya"></span><span data-pav="arjun"></span><span data-pav="zoya"></span></div>
+  <div class="crew" aria-hidden="true"><span data-obj="mask"></span><span data-obj="kulhad"></span><span data-obj="heart"></span><span data-obj="rings"></span><span data-obj="star"></span><span data-obj="shield"></span></div>
   <h2>Ready when you are.</h2>
   <p>Someone worth slowing down for is already here.</p>
   <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center"><a class="cta cream" href="/app#signup">Join PAUSE</a><button class="cta ghost" data-ask type="button">Ask a question</button></div>
@@ -345,10 +348,12 @@ footer a{text-decoration:none}footer a:hover{color:var(--primary)}
 
 <button class="helpbtn" data-ask type="button" aria-label="Help"><i aria-hidden="true"><b></b><b></b></i><span>Help</span></button>
 <script src="/avatars.js"></script>
+<script src="/objects.js"></script>
 <script src="/ask.js"></script>
 <script>
 // Illustrated avatars (see /avatars.js): clearly cartoons, never presented as members.
 PauseAvatar.mount();
+PauseObj.mount();
 (() => {
   const demo = document.getElementById('demo'), btn = document.getElementById('dBtn');
   const you = document.getElementById('dYou'), them = document.getElementById('dThem'), cap = document.getElementById('dCap');

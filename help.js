@@ -1,6 +1,6 @@
 // PAUSE — "Ask PAUSE" help bot. Rule-based: answers rules, how-tos and account status.
 // It never reads anyone's chats. Anything it can't answer goes to a human via a support ticket.
-const CHIPS = ['How does Masked work?', 'What is Destiny?', 'Why only five chats?', 'Is my verification done?', 'Kundli matching', 'Safety and emergencies', 'Report someone', 'Talk to a person'];
+const CHIPS = ['How does Masked work?', 'What is Destiny?', 'Why only five matches?', 'Is my verification done?', 'Kundli matching', 'Safety and emergencies', 'Report someone', 'Talk to a person'];
 
 const STATUS = {
   new: 'You haven’t sent your ID yet. Finish your profile, then go to Verify: one ID photo + one selfie. A real person checks it, usually within a few hours.',
@@ -15,8 +15,8 @@ const INTENTS = [
     'Masked keeps photos hidden. If either of you is masked, you both stay masked in picks and chat. When you’re ready, tap Unmask. Photos open only when BOTH of you tap it. You can turn Masked on or off in any category from your profile.' },
   { k: ['destiny', 'questionnaire', 'questions', '9 pm', '9pm', 'drop', 'kismat', 'compatib'], a: () =>
     'Destiny is optional. Turn it on in a category and answer 12 quick questions (about 3 minutes). You’ll see a match % on your picks, and every night at 9 pm you get one hand-picked Destiny match with the reasons you fit.' },
-  { k: ['5 chats', 'five', 'focus', 'limit', 'only 5', 'more chats', 'why 5', 'slots'], a: () =>
-    'Focus 5: everyone can talk to 5 people at a time — men and women alike. It keeps conversations real and stops spam. To meet someone new, close a chat politely from the chat menu and the slot frees up.' },
+  { k: ['5 matches', 'five matches', '5 chats', 'five', 'focus', 'limit', 'only 5', 'more matches', 'more chats', 'why 5', 'slots', 'no matches', 'not getting matches'], a: () =>
+    'Everyone on PAUSE, men and women alike, can have up to 5 active matches. At 5, new matches pause: you won’t appear in anyone’s picks and you can’t like new people. If someone you liked likes you back while you’re full, it waits and becomes a match when a slot frees up. To make room, end a match from the chat menu.' },
   { k: ['category', 'categories', 'steady', 'forever', 'after dark', 'afterdark', 'mode', 'switch'], a: () =>
     'Three categories: Steady (dating that’s going somewhere), Forever (marriage-minded, kundli optional) and After Dark (casual, honest, still fully verified). You only meet people in the same category. You can switch once a week from your profile.' },
   { k: ['verify', 'verification', 'verified', 'id', 'aadhaar', 'pan', 'selfie', 'approve', 'approval', 'queue', 'kab'], a: (u) =>
