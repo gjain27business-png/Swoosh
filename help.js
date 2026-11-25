@@ -16,11 +16,11 @@ const INTENTS = [
   { k: ['destiny', 'questionnaire', 'questions', '9 pm', '9pm', 'drop', 'kismat', 'compatib'], a: () =>
     'Destiny is optional. Turn it on in a category and answer 12 quick questions (about 3 minutes). You’ll see a match % on your picks, and every night at 9 pm you get one hand-picked Destiny match with the reasons you fit.' },
   { k: ['5 matches', 'five matches', '5 chats', 'five', 'focus', 'limit', 'only 5', 'more matches', 'more chats', 'why 5', 'slots', 'no matches', 'not getting matches'], a: () =>
-    'Everyone on PAUSE, men and women alike, can have up to 5 active matches. At 5, new matches pause: you won’t appear in anyone’s picks and you can’t like new people. If someone you liked likes you back while you’re full, it waits and becomes a match when a slot frees up. To make room, end a match from the chat menu.' },
+    'Everyone on PAUSE, men and women alike, can have up to 5 active matches. There’s no limit on browsing. At 5 matches, new matches pause: you can keep exploring, but you can’t like anyone new and you won’t appear in other people’s picks. If someone you liked likes you back while you’re full, it waits and becomes a match when a slot frees up. To make room, end a match from the chat menu.' },
   { k: ['category', 'categories', 'steady', 'forever', 'after dark', 'afterdark', 'mode', 'switch'], a: () =>
     'Three categories: Steady (dating that’s going somewhere), Forever (marriage-minded, kundli optional) and After Dark (casual, honest, still fully verified). You only meet people in the same category. You can switch once a week from your profile.' },
   { k: ['verify', 'verification', 'verified', 'id', 'aadhaar', 'pan', 'selfie', 'approve', 'approval', 'queue', 'kab'], a: (u) =>
-    u ? STATUS[u.status] || STATUS.new : 'Everyone does the same check: one government ID photo + one selfie, checked by a real person. One ID can only ever make one account. After the check we delete both images.' },
+    u ? STATUS[u.status] || STATUS.new : 'Everyone does the same check: a photo of your PAN, driving licence, Voter ID or passport, plus a selfie, checked by a real person. We don’t accept Aadhaar. One ID can only ever make one account. After the check we delete both images.' },
   { k: ['kundli', 'guna', 'gun milan', 'nakshatra', 'rashi', 'manglik', 'astrology'], a: () =>
     'Kundli is only in Forever, and it’s optional. Add your birth time (we calculate your Moon sign and Nakshatra) or pick your Rashi and Nakshatra yourself. When both people have it on, picks show a guna score out of 36, and you can filter by a minimum score.' },
   { k: ['horoscope', 'zodiac', 'sun sign', 'star sign'], a: () =>

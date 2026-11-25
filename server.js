@@ -15,6 +15,10 @@ const help = require('./help');
 const PORT = process.env.PORT || 3000;
 const SECRET = process.env.SESSION_SECRET || 'dev-secret-change-me';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin';
+// SMS codes (MSG91). Codes are required at sign-up only when both values are set. OTP_DEV=1 logs codes locally instead.
+const MSG91_AUTHKEY = process.env.MSG91_AUTHKEY || '', MSG91_TEMPLATE = process.env.MSG91_OTP_TEMPLATE_ID || '';
+const OTP_DEV = process.env.OTP_DEV === '1' && process.env.NODE_ENV !== 'production';
+const OTP_ON = !!(MSG91_AUTHKEY && MSG91_TEMPLATE) || OTP_DEV;
 const BRAND = process.env.BRAND_NAME && !/swoosh/i.test(process.env.BRAND_NAME) ? process.env.BRAND_NAME : 'PAUSE';
 const FOCUS = 5;
 const DROP_HOUR_IST = Math.min(23, Math.max(0, parseInt(process.env.DESTINY_DROP_HOUR || '21', 10) || 0)); // 9 pm IST
@@ -88,6 +92,7 @@ async function migrate() {
   ALTER TABLE photos ADD COLUMN IF NOT EXISTS token TEXT;
   CREATE UNIQUE INDEX IF NOT EXISTS photos_token ON photos(token);
   ALTER TABLE verifications ADD COLUMN IF NOT EXISTS id_last4 TEXT DEFAULT '';
+  CREATE TABLE IF NOT EXISTS otps (phone TEXT NOT NULL, purpose TEXT NOT NULL, code_hash TEXT NOT NULL, expires_at TIMESTAMPTZ NOT NULL, attempts INT DEFAULT 0, PRIMARY KEY (phone, purpose));
   `);
   // Photos are addressed by a random token, never by their row number.
   const { rows: untokened } = await q('SELECT id FROM photos WHERE token IS NULL');
@@ -130,7 +135,6 @@ const tooMany = (res, mins) => err(res, 429, `Too many attempts. Try again in ${
 
 // ID numbers: normalised, checked against the format for the chosen document, then only a one-way code is kept.
 const ID_FORMATS = {
-  Aadhaar: [/^[2-9]\d{11}$/, 'An Aadhaar number has 12 digits.'],
   PAN: [/^[A-Z]{5}\d{4}[A-Z]$/, 'A PAN looks like ABCDE1234F.'],
   'Driving licence': [/^[A-Z]{2}\d{13}$/, 'A driving licence number looks like MH1420110012345.'],
   'Voter ID': [/^[A-Z]{3}\d{7}$/, 'A Voter ID (EPIC) number looks like ABC1234567.'],
@@ -250,6 +254,55 @@ async function meJson(u) {
   };
 }
 
+// ---------- SMS codes ----------
+const otpHash = (phone, purpose, code) => crypto.createHmac('sha256', SECRET).update(`${phone}:${purpose}:${code}`).digest('hex');
+async function sendSms(phone, code) {
+  if (OTP_DEV && !MSG91_AUTHKEY) { console.log(`[otp] ${phone}: ${code}`); return true; }
+  const url = `https://control.msg91.com/api/v5/otp?template_id=${encodeURIComponent(MSG91_TEMPLATE)}&mobile=91${phone}&otp=${code}&otp_length=6&otp_expiry=10`;
+  try {
+    const r = await fetch(url, { method: 'POST', headers: { authkey: MSG91_AUTHKEY, 'Content-Type': 'application/json' }, body: '{}' });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || j.type === 'error') { console.error('[otp] send failed', r.status, j.message || ''); return false; }
+    return true;
+  } catch (e) { console.error('[otp] send failed', e.message); return false; }
+}
+async function checkOtp(phone, purpose, code) {
+  const { rows } = await q('SELECT * FROM otps WHERE phone=$1 AND purpose=$2', [phone, purpose]);
+  const o = rows[0];
+  if (!o || new Date(o.expires_at) < new Date() || o.attempts >= 5) return false;
+  const a = Buffer.from(otpHash(phone, purpose, String(code || '').trim())), b = Buffer.from(o.code_hash);
+  if (!crypto.timingSafeEqual(a, b)) { await q('UPDATE otps SET attempts=attempts+1 WHERE phone=$1 AND purpose=$2', [phone, purpose]); return false; }
+  await q('DELETE FROM otps WHERE phone=$1 AND purpose=$2', [phone, purpose]);
+  return true;
+}
+app.post('/api/otp/send', wrap(async (req, res) => {
+  if (!OTP_ON) return err(res, 400, 'SMS codes are not switched on yet');
+  const phone = normPhone(req.body.phone), purpose = req.body.purpose === 'reset' ? 'reset' : 'signup';
+  if (phone.length !== 10 || !/^[6-9]/.test(phone)) return err(res, 400, 'Enter a valid 10-digit mobile number');
+  const wait = limited('otp-ip:' + req.ip, 20 * IP_SCALE, 60 * 60000) || limited('otp-phone:' + phone, 3, 10 * 60000) || limited('otp-day:' + phone, 8, 24 * 60 * 60000);
+  if (wait) return tooMany(res, wait);
+  const { rows } = await q('SELECT id FROM users WHERE phone=$1', [phone]);
+  if (purpose === 'signup' && rows[0]) return err(res, 409, 'An account with this number already exists. Log in instead.');
+  if (purpose === 'reset' && !rows[0]) return res.json({ ok: true }); // don't reveal which numbers have accounts
+  const code = String(crypto.randomInt(100000, 1000000));
+  await q(`INSERT INTO otps(phone, purpose, code_hash, expires_at, attempts) VALUES($1,$2,$3, now() + interval '10 minutes', 0)
+    ON CONFLICT (phone, purpose) DO UPDATE SET code_hash=$3, expires_at=now() + interval '10 minutes', attempts=0`, [phone, purpose, otpHash(phone, purpose, code)]);
+  if (!(await sendSms(phone, code))) return err(res, 502, 'We couldn’t send the code. Try again in a minute.');
+  res.json({ ok: true });
+}));
+app.post('/api/password/reset', wrap(async (req, res) => {
+  if (!OTP_ON) return err(res, 400, 'Password reset by SMS is not switched on yet');
+  const phone = normPhone(req.body.phone), pw = String(req.body.password || '');
+  if (pw.length < 8) return err(res, 400, 'Password must be at least 8 characters');
+  if (!(await checkOtp(phone, 'reset', req.body.otp))) return err(res, 400, 'That code is wrong or has expired. Ask for a new one.');
+  const { rows } = await q('UPDATE users SET pass_hash=$2 WHERE phone=$1 RETURNING id, status', [phone, await bcrypt.hash(pw, 10)]);
+  if (!rows[0]) return err(res, 400, 'That code is wrong or has expired. Ask for a new one.');
+  if (rows[0].status === 'banned') return err(res, 403, 'This account has been banned.');
+  buckets.delete('login-phone:' + phone);
+  req.session.uid = rows[0].id;
+  res.json({ ok: true });
+}));
+
 // ---------- auth ----------
 app.post('/api/signup', wrap(async (req, res) => {
   const wait = limited('signup:' + req.ip, 30 * IP_SCALE, 60 * 60000);
@@ -259,6 +312,7 @@ app.post('/api/signup', wrap(async (req, res) => {
   if (phone.length !== 10) return err(res, 400, 'Enter a valid 10-digit mobile number');
   if (pw.length < 8) return err(res, 400, 'Password must be at least 8 characters');
   if (!req.body.agree) return err(res, 400, 'Please accept the terms (18+ only)');
+  if (OTP_ON && !(await checkOtp(phone, 'signup', req.body.otp))) return err(res, 400, 'That code is wrong or has expired. Ask for a new one.');
   try {
     const { rows } = await q('INSERT INTO users(phone, pass_hash) VALUES($1,$2) RETURNING id', [phone, await bcrypt.hash(pw, 10)]);
     req.session.uid = rows[0].id;
@@ -509,13 +563,12 @@ app.get('/api/picks', authW, verified, wrap(async (req, res) => {
   const u = req.user;
   const active = await activeCount(u.id);
   if (!LIVE_CITIES.includes(u.city)) return res.json({ live: false, active, picks: [] });
-  if (active >= FOCUS) return res.json({ live: true, focus_full: true, active, picks: [] });
   const myAnswers = u.destiny ? await destinyAnswers(u.id, u.mode) : null;
   const list = (await candidates(u, 40)).slice(0, 12);
   const out = [];
   for (const o of list) out.push(await enrich(u, o, myAnswers));
   if (u.destiny) out.sort((a, b) => (b.destiny ? b.destiny.pct : -1) - (a.destiny ? a.destiny.pct : -1));
-  res.json({ live: true, active, picks: out.slice(0, 10) });
+  res.json({ live: true, active, focus_full: active >= FOCUS, picks: out.slice(0, 10) });
 }));
 
 // The 9 pm Destiny drop: one best-fit person a day for people with Destiny on.
@@ -804,8 +857,11 @@ app.post('/api/help/ticket', wrap(async (req, res) => {
 
 // ---------- admin ----------
 function admin(req, res, next) {
+  if (process.env.NODE_ENV === 'production' && ADMIN_PASSWORD === 'admin') return err(res, 503, 'Set ADMIN_PASSWORD on the server first.');
+  const key = 'admin-fail:' + req.ip, f = buckets.get(key);
+  if (f && f.reset > Date.now() && f.n >= 10) return tooMany(res, Math.ceil((f.reset - Date.now()) / 60000));
   const a = Buffer.from(req.get('x-admin-password') || ''), b = Buffer.from(ADMIN_PASSWORD);
-  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return err(res, 401, 'Wrong admin password');
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) { limited(key, 10, 15 * 60000); return err(res, 401, 'Wrong admin password'); }
   next();
 }
 app.get('/api/admin/pending', admin, wrap(async (req, res) => {
@@ -880,7 +936,7 @@ app.post('/api/admin/ban/:uid', admin, wrap(async (req, res) => {
 
 // ---------- pages ----------
 app.get('/api/config', (req, res) => res.json({
-  brand: BRAND, live_cities: LIVE_CITIES, focus: FOCUS, modes: MODE_NAMES, religions: RELIGIONS, diets: DIETS,
+  brand: BRAND, live_cities: LIVE_CITIES, focus: FOCUS, otp: OTP_ON, id_types: Object.keys(ID_FORMATS), modes: MODE_NAMES, religions: RELIGIONS, diets: DIETS,
   nakshatras: kundli.NAK, rashis: kundli.RASHI, help_chips: help.CHIPS
 }));
 app.use(express.static(path.join(__dirname, 'public'), { extensions: ['html'] }));

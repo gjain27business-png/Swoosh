@@ -134,7 +134,7 @@ async function route() {
   closeSheet();
   await cfgReady;
   const [view, arg] = location.hash.replace(/^#/, '').split('/');
-  if (view === 'signup' || view === 'login') return authView(view);
+  if (view === 'signup' || view === 'login' || view === 'reset') return authView(view);
   try { ME = await api('/me'); } catch (e) { return authView('signup'); }
   const profileDone = ME.name && ME.gender && ME.dob && ME.city && ME.interested.length && ME.photos.length;
   if (view === 'profile' || !profileDone) return profileView(!profileDone);
@@ -151,25 +151,40 @@ window.addEventListener('hashchange', route);
 
 // ---------- auth ----------
 function authView(mode) {
-  const signup = mode === 'signup';
+  const signup = mode === 'signup', reset = mode === 'reset';
+  if (reset && !CFG.otp) { location.hash = 'login'; return; }
+  const needCode = (signup || reset) && CFG.otp;
   render(`<main class="screen fade-in" style="padding-top:24px">
     <div class="authhero">${WORDMARK}<div class="ahs" aria-hidden="true"><span class="o1">${OBJ('mask')}</span><span class="o2">${OBJ('kulhad')}</span><span class="o3">${OBJ('heart')}</span><span class="o4">${OBJ('star')}</span><span class="stk mint s1">${I('heart')}It’s mutual!</span><span class="stk s2">Chai pe chalein?</span></div></div>
-    <h1 style="font-size:42px;margin:28px 0 12px">${signup ? 'Hit pause on swiping.' : 'Welcome back.'}</h1>
-    <p class="hint" style="font-size:15px;margin:0 0 24px">${signup ? 'Every member is ID-verified. You can have up to five matches at a time, and photos stay masked until you both choose to unmask. Live in Bangalore and Delhi NCR.' : 'Log in with your mobile number.'}</p>
+    ${reset ? '<h1 style="font-size:42px;margin:28px 0 12px">Reset your password.</h1><p class="hint" style="font-size:15px;margin:0 0 24px">We’ll text a 6-digit code to your number.</p>' : `    <h1 style="font-size:42px;margin:28px 0 12px">${signup ? 'Hit pause on swiping.' : 'Welcome back.'}</h1>
+    <p class="hint" style="font-size:15px;margin:0 0 24px">${signup ? 'Every member is ID-verified. You can have up to five matches at a time, and photos stay masked until you both choose to unmask. Live in Bangalore and Delhi NCR.' : 'Log in with your mobile number.'}</p>`}
     <form id="f">
       <div class="field"><label for="phone">Mobile number</label><input id="phone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="10-digit number" required></div>
-      <div class="field"><label for="pw">Password</label><input id="pw" type="password" autocomplete="${signup ? 'new-password' : 'current-password'}" minlength="8" required placeholder="At least 8 characters"></div>
+      ${needCode ? `<div class="field" id="codef" hidden><label for="otp">6-digit code</label><input id="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="Sent by SMS"><span class="hint" id="codeh"></span></div>` : ''}
+      <div class="field"><label for="pw">${reset ? 'New password' : 'Password'}</label><input id="pw" type="password" autocomplete="${signup || reset ? 'new-password' : 'current-password'}" minlength="8" required placeholder="At least 8 characters"></div>
       ${signup ? '<label style="display:flex;gap:10px;align-items:flex-start;font-size:14px;margin-bottom:14px"><input id="agree" type="checkbox" style="width:20px;height:20px;margin-top:1px;flex:none;accent-color:#0B4A5C" required><span>I’m 18 or older and agree to the <a href="/terms" target="_blank">Terms</a> and <a href="/privacy" target="_blank">Privacy Policy</a>.</span></label>' : ''}
       <div class="err" id="err" role="alert"></div>
-      <button class="btn block" type="submit">${signup ? 'Create account' : 'Log in'}</button>
+      <button class="btn block" type="submit" id="go">${needCode ? 'Text me a code' : signup ? 'Create account' : 'Log in'}</button>
     </form>
-    <p style="text-align:center;margin-top:22px;font-size:15px">${signup ? 'Already a member? <a href="#login">Log in</a>' : 'New to PAUSE? <a href="#signup">Create an account</a>'}</p>
+    ${!signup && !reset && CFG.otp ? '<p style="text-align:center;margin-top:14px;font-size:15px"><a href="#reset">Forgot password?</a></p>' : ''}
+    <p style="text-align:center;margin-top:22px;font-size:15px">${signup ? 'Already a member? <a href="#login">Log in</a>' : reset ? '<a href="#login">Back to log in</a>' : 'New to PAUSE? <a href="#signup">Create an account</a>'}</p>
     <p style="text-align:center"><button class="linkbtn" data-ask type="button">Questions before you join?</button></p>
   </main>`);
+  let codeSent = false;
+  const sendCode = async () => {
+    await api('/otp/send', { method: 'POST', body: { phone: el('phone').value, purpose: reset ? 'reset' : 'signup' } });
+    codeSent = true; el('codef').hidden = false; el('otp').focus();
+    el('codeh').innerHTML = 'Didn’t get it? <button class="linkbtn" type="button" id="resend">Send again</button>';
+    el('resend').onclick = async () => { try { await sendCode(); toast('New code sent'); } catch (x) { el('err').textContent = x.message; } };
+    el('go').textContent = signup ? 'Create account' : reset ? 'Set new password' : 'Log in';
+  };
   el('f').onsubmit = async (e) => {
     e.preventDefault();
+    el('err').textContent = '';
     try {
-      await api(signup ? '/signup' : '/login', { method: 'POST', body: { phone: el('phone').value, password: el('pw').value, agree: signup ? el('agree').checked : true } });
+      if (needCode && !codeSent) { if (signup && !el('agree').checked) { el('err').textContent = 'Please confirm you’re 18 or older and agree to the terms.'; return; } await sendCode(); return; }
+      if (reset) await api('/password/reset', { method: 'POST', body: { phone: el('phone').value, otp: el('otp').value, password: el('pw').value } });
+      else await api(signup ? '/signup' : '/login', { method: 'POST', body: { phone: el('phone').value, password: el('pw').value, agree: signup ? el('agree').checked : true, otp: needCode ? el('otp').value : undefined } });
       location.hash = signup ? 'profile' : 'picks'; route();
     } catch (x) { el('err').textContent = x.message; }
   };
@@ -317,9 +332,9 @@ function verifyView() {
     <p class="hint" style="font-size:15px;margin-top:-6px">Step 2 of 2. Every member goes through the same check, so the people you meet are who they say they are.</p>
     ${s === 'rejected' ? `<div class="note" style="margin-bottom:16px">${I('alert')}<span>Your last check didn’t pass${ME.reject_reason ? ': ' + esc(ME.reject_reason) : ''}. Please try again with clearer photos.</span></div>` : ''}
     <form id="vf">
-      <div class="field"><label for="idt">ID type</label><select id="idt"><option>Aadhaar</option><option>PAN</option><option>Driving licence</option><option>Voter ID</option><option>Passport</option></select></div>
-      <div class="field"><label for="idn">ID number</label><input id="idn" autocomplete="off" required minlength="6"><span class="hint" id="idh">12 digits. We keep only a one-way code so one ID can’t open two accounts, plus the last 4 digits so our reviewer can match it to your photo. The full number is never stored or shown.</span></div>
-      <div class="field"><label for="idi">Photo of your ID (front)</label><input id="idi" type="file" accept="image/*" required><span class="hint" id="idph">For Aadhaar, upload a masked Aadhaar: only the last 4 digits visible. Download it free from the UIDAI website (choose “masked Aadhaar”), or cover the first 8 digits yourself.</span></div>
+      <div class="field"><label for="idt">ID type</label><select id="idt"><option>PAN</option><option>Driving licence</option><option>Voter ID</option><option>Passport</option></select></div>
+      <div class="field"><label for="idn">ID number</label><input id="idn" autocomplete="off" required minlength="6"><span class="hint" id="idh">Looks like ABCDE1234F. We keep only a one-way code so one ID can’t open two accounts, plus the last 4 digits so our reviewer can match it to your photo. The full number is never stored or shown.</span></div>
+      <div class="field"><label for="idi">Photo of your ID (front)</label><input id="idi" type="file" accept="image/*" required><span class="hint" id="idph">A clear photo of the front of your PAN card. We don’t accept Aadhaar.</span></div>
       <div class="field"><label for="sf">A selfie, facing the camera in good light</label><input id="sf" type="file" accept="image/*" capture="user" required></div>
       <div class="note" style="margin-bottom:16px">${I('lock')}<span>A person compares your selfie with your ID and photos. Both images are deleted as soon as we decide.</span></div>
       <div class="err" id="err" role="alert"></div>
@@ -328,8 +343,7 @@ function verifyView() {
     <p style="text-align:center;margin-top:16px"><a href="#profile">Edit profile</a></p>
   </main>`);
   const ID_HINTS = {
-    Aadhaar: ['12 digits.', 'For Aadhaar, upload a masked Aadhaar: only the last 4 digits visible. Download it free from the UIDAI website (choose “masked Aadhaar”), or cover the first 8 digits yourself.'],
-    PAN: ['Looks like ABCDE1234F.', 'A clear photo of the front of your PAN card.'],
+    PAN: ['Looks like ABCDE1234F.', 'A clear photo of the front of your PAN card. We don’t accept Aadhaar.'],
     'Driving licence': ['Looks like MH1420110012345.', 'A clear photo of the front of your driving licence.'],
     'Voter ID': ['Looks like ABC1234567.', 'A clear photo of the front of your Voter ID.'],
     Passport: ['Looks like A1234567.', 'A clear photo of the page with your photo.']
@@ -428,27 +442,26 @@ async function picksView() {
       <p class="hint">We’re live in ${esc(CFG.live_cities.join(' and '))}. Your verified profile is saved, and your picks start the day your city opens.</p>
       <a class="btn ghost" href="#profile" style="margin-top:12px">Change city</a></div>`);
   }
-  if (data.focus_full) {
-    return screen(`<div class="empty">${EMOBJ('pause')}<h2>You have five matches</h2>
-      <p class="hint">That’s the most anyone on PAUSE can have, so new matches are paused for now. End one from its chat and new matches open up again.</p>
-      <a class="btn" href="#chats" style="margin-top:12px">Go to chats</a></div>`);
-  }
+  const full = !!data.focus_full;
+  const fullBar = full ? `<div class="fullbar">${I('pause')}<span><b>You have five matches.</b> Keep exploring. To like someone new, end one of your matches.</span><a href="#chats">Chats</a></div>` : '';
   const picks = data.picks;
   let i = 0;
   const show = () => {
     const p = picks[i];
+    if (!p && !full && picks.length >= 10) { picksView(); return; } // more to explore: load the next batch
     if (!p) {
-      return screen(`<div class="empty">${EMOBJ('moon')}<h2>You’ve seen everyone for now</h2>
+      return screen(`${fullBar}<div class="empty">${EMOBJ('moon')}<h2>You’ve seen everyone for now</h2>
         <p class="hint">That’s everyone who fits your category, city and age range right now. New members are verified every day, so check back soon, or widen your preferences to see more.</p>
         <a class="btn ghost" href="#profile" style="margin-top:12px">Adjust preferences</a></div>`);
     }
-    screen(`<div class="counter">${i + 1} of ${picks.length}</div>
+    screen(`${fullBar}<div class="counter">${i + 1} of ${picks.length}</div>
       ${pickCard(p)}
       <div class="actions">
-        <button class="round" id="pass" aria-label="Pass on ${esc(p.name)}">${I('x')}</button>
-        <button class="btn" id="like" style="flex:1;min-height:56px;border-radius:28px">${p.masked ? 'Like, stay masked' : 'Like'}</button>
+        <button class="round" id="pass" aria-label="${full ? 'Next profile' : 'Pass on ' + esc(p.name)}">${I(full ? 'back' : 'x')}</button>
+        <button class="btn" id="like" style="flex:1;min-height:56px;border-radius:28px" ${full ? 'disabled' : ''}>${full ? 'End a match to like' : p.masked ? 'Like, stay masked' : 'Like'}</button>
       </div>
-      <p class="hint" style="text-align:center">If ${esc(p.name)} likes you back, it’s a match. You have ${data.active} of ${CFG.focus} matches.</p>`);
+      <p class="hint" style="text-align:center">${full ? 'Browsing doesn’t use anything up. People you skip here stay in your picks.' : `If ${esc(p.name)} likes you back, it’s a match. You have ${data.active} of ${CFG.focus} matches.`}</p>`);
+    if (full) { el('pass').onclick = () => { i++; show(); }; return; }
     const card = el('card');
     const act = async (kind) => {
       card.classList.add(kind === 'like' ? 'out-right' : 'out-left');
