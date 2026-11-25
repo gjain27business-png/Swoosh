@@ -42,7 +42,7 @@ const INTENTS = [
   { k: ['delete', 'remove account', 'close account', 'deactivate'], a: () =>
     'Safety → Delete my account. It removes your profile, photos and chats permanently. If you only need a break, use Take a pause instead.' },
   { k: ['price', 'cost', 'pay', 'free', 'premium', 'subscription', 'refund', 'charge'], a: () =>
-    'PAUSE is free while we launch in Bangalore and Delhi NCR. If we add paid features later, we’ll tell you before anything is charged, and refunds will follow the policy on the website.' },
+    'PAUSE is free while we launch in Bangalore. If we add paid features later, we’ll tell you before anything is charged, and refunds will follow the policy on the website.' },
   { k: ['city', 'cities', 'bangalore', 'delhi', 'mumbai', 'pune', 'hyderabad', 'available', 'where'], a: (u, cities) =>
     `PAUSE is live in ${cities.join(' and ')}. In other cities you can still sign up and verify; you’ll get picks the day your city opens.` },
   { k: ['data', 'privacy', 'personal', 'dpdp', 'store'], a: () =>

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PAUSE — Hit pause on swiping</title>
-<meta name="description" content="PAUSE is dating for people who are done with endless swiping. Every member is checked by a real person, you can have up to five matches at a time, and photos open only when you both say yes. Live in Bangalore and Delhi NCR.">
+<meta name="description" content="PAUSE is dating for people who are done with endless swiping. Every member is checked by a real person, you can have up to five matches at a time, and photos open only when you both say yes. Live in Bangalore.">
 <meta property="og:title" content="PAUSE — Hit pause on swiping">
 <meta property="og:description" content="Meet someone worth slowing down for. Verified members, five matches at a time, photos open only when you both say yes.">
 <meta name="theme-color" content="#0B4A5C">
@@ -122,6 +122,7 @@ h2.big{font-size:clamp(38px,4.6vw,60px);line-height:1;margin:0 0 18px;letter-spa
 .sf p{margin:0;color:var(--muted);font-size:15px;line-height:1.6}
 .cities{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;margin-top:56px}
 .city{border-radius:30px;overflow:hidden;color:#fff;position:relative;min-height:320px;padding:34px;display:flex;flex-direction:column;justify-content:flex-start;background:linear-gradient(180deg,#0B4A5C 0%,#12808A 48%,#FF8A70 100%)}
+.city .live.soon{background:rgba(255,255,255,.18);color:#fff}.city .live.soon::before{background:#FFD166}
 .city.delhi{background:linear-gradient(180deg,#08304A 0%,#0F6470 48%,#FFC94D 100%)}
 .city svg{position:absolute;left:0;right:0;bottom:0;width:100%;height:auto}
 .city h3{font-size:44px;margin:12px 0 0;color:#fff;position:relative}.city p{margin:6px 0 0;color:rgba(255,255,255,.9);font-size:15px;position:relative}
@@ -228,7 +229,7 @@ footer a{text-decoration:none}footer a:hover{color:var(--primary)}
       </div>
     </div>
     <div class="stack" aria-label="Example profiles">
-      <div class="pcard back1" aria-hidden="true"><div class="art" data-pav="kabir" data-frame="portrait"></div><div class="nm"><b>Kabir, 26</b><span><svg class="ic"><use href="#i-check"/></svg>Verified, Delhi NCR</span></div></div>
+      <div class="pcard back1" aria-hidden="true"><div class="art" data-pav="kabir" data-frame="portrait"></div><div class="nm"><b>Kabir, 26</b><span><svg class="ic"><use href="#i-check"/></svg>Verified, Bangalore</span></div></div>
       <div class="pcard back2" aria-hidden="true"><div class="art" data-pav="meera" data-frame="portrait"></div><div class="nm"><b>Meera, 24</b><span><svg class="ic"><use href="#i-check"/></svg>Verified, Bangalore</span></div></div>
       <div class="pcard front" id="demo">
         <div class="art" data-pav="ananya" data-frame="portrait" data-label="Illustrated portrait of Ananya"><span class="mlab"><svg class="ic"><use href="#i-mask"/></svg>Masked</span><div class="nm"><b>Ananya, 25</b><span><svg class="ic"><use href="#i-check"/></svg>Verified, Bangalore</span></div></div>
@@ -313,20 +314,20 @@ footer a{text-decoration:none}footer a:hover{color:var(--primary)}
 </div></section>
 
 <section class="s"><div class="wrap">
-  <h2 class="big">Live in Bangalore and Delhi NCR.</h2>
+  <h2 class="big">Live in Bangalore. Delhi NCR is next.</h2>
   <div class="cities">
     <div class="city"><span class="live">Live now</span><h3>Bangalore</h3><p>All of Bengaluru.</p>
       <svg viewBox="0 0 560 150" aria-hidden="true"><path fill="#062A3A" d="M0 150V110h40V84h50v26h40V96h30V72h220v24h30v14h40V80h40v30h70v40z"/><path fill="#062A3A" d="M180 150V78h200v72z"/><path fill="#062A3A" d="M250 78V58h60v20zM258 58c0-24 10-38 22-38s22 14 22 38zM276 20h8V8h-8z"/><path fill="#062A3A" d="M190 78c0-14 8-24 18-24s18 10 18 24zM334 78c0-14 8-24 18-24s18 10 18 24z"/><g fill="#FFC27A" opacity=".8"><rect x="200" y="100" width="8" height="14"/><rect x="226" y="100" width="8" height="14"/><rect x="326" y="100" width="8" height="14"/><rect x="352" y="100" width="8" height="14"/></g></svg></div>
-    <div class="city delhi"><span class="live">Live now</span><h3>Delhi NCR</h3><p>Delhi, Gurugram, Noida, Ghaziabad and Faridabad.</p>
+    <div class="city delhi"><span class="live soon">Coming next</span><h3>Delhi NCR</h3><p>Join the waitlist below and we’ll text you the day it opens.</p>
       <svg viewBox="0 0 560 150" aria-hidden="true"><path fill="#062A3A" d="M0 150V112h60V90h60v22h40v38zM440 150V100h50v12h70v38z"/><path fill="#062A3A" d="M180 150V40h140v110h-40v-58a30 30 0 0 0-60 0v58zM170 30h160v12H170zM206 18h88v12h-88z"/><path fill="#062A3A" d="M372 150l10-130h16l10 130zM378 70h24v6h-24zM382 40h16v5h-16zM386 20V6h8v14z"/></svg></div>
   </div>
-  <form class="wl" id="wl"><label class="sr" for="wlp">Mobile number</label><input id="wlp" type="tel" inputmode="numeric" placeholder="Your mobile number" required><label class="sr" for="wlc">City</label><input id="wlc" placeholder="Your city, e.g. Mumbai or Pune"><button class="cta rose">Notify me when PAUSE opens</button></form>
+  <form class="wl" id="wl"><label class="sr" for="wlp">Mobile number</label><input id="wlp" type="tel" inputmode="numeric" placeholder="Your mobile number" required><label class="sr" for="wlc">City</label><input id="wlc" placeholder="Your city, e.g. Delhi, Mumbai or Pune"><button class="cta rose">Notify me when PAUSE opens</button></form>
   <p class="hint" id="wlm" role="status" style="margin-top:10px"></p>
 </div></section>
 
 <section class="s" id="faq" style="padding-top:0"><div class="wrap" style="max-width:860px">
   <h2 class="big">Questions.</h2>
-  <details><summary>Is PAUSE free?</summary><p>Yes, while we launch in Bangalore and Delhi NCR. If we add paid features later, you’ll see the price before anything is charged.</p></details>
+  <details><summary>Is PAUSE free?</summary><p>Yes, while we launch in Bangalore. If we add paid features later, you’ll see the price before anything is charged.</p></details>
   <details><summary>Who can see my photos?</summary><p>With Masked on, nobody until you and the other person both tap Unmask. With Masked off, verified members who could be matched with you in your category can see them. Every photo shown to someone else carries a watermark with their account code.</p></details>
   <details><summary>Why only five matches?</summary><p>Five real matches are worth more than fifty you never reply to. The limit is the same for everyone. At five you can still browse, but new matches pause. End one politely and you can like people again.</p></details>
   <details><summary>Do I need to share my ID?</summary><p>No. To join, you link your Instagram or LinkedIn, which only our reviewers see. The ID check is optional and adds an ID-verified badge: a person compares your ID photo with a selfie, then both are deleted. We keep only a one-way code of the ID number, so one ID can’t open two accounts. We don’t accept Aadhaar.</p></details>

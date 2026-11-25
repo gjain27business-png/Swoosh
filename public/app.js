@@ -55,7 +55,7 @@ const GENDERS = { woman: 'Woman', man: 'Man', nonbinary: 'Non-binary' };
 const SEEKING = { woman: 'Women', man: 'Men', nonbinary: 'Non-binary people' };
 const STEPS = ['Masked', 'Unmasked', 'Numbers shared'];
 let ME = null;
-let CFG = { brand: 'PAUSE', live_cities: ['Bangalore', 'Delhi NCR'], focus: 5, religions: [], diets: [], nakshatras: [], rashis: [] };
+let CFG = { brand: 'PAUSE', live_cities: ['Bangalore'], focus: 5, religions: [], diets: [], nakshatras: [], rashis: [] };
 const cfgReady = fetch('/api/config').then((r) => r.json()).then((c) => { CFG = { ...CFG, ...c }; }).catch(() => {});
 let pollTimer = null, tickTimer = null;
 
@@ -98,7 +98,7 @@ const fmtHeight = (cm) => { if (!cm) return ''; let ft = Math.floor(cm / 30.48),
 const initial = (n) => esc(String(n || '?').trim().charAt(0).toUpperCase());
 function navbar(active, badge = 0) {
   const item = (href, label, ic, b) => `<a href="#${href}" ${active === href ? 'aria-current="page"' : ''}>${I(ic)}${label}${b ? `<span class="badge">${b}</span>` : ''}</a>`;
-  return `<nav class="navbar" aria-label="Main"><div>${item('picks', 'Picks', 'heart')}${item('chats', 'Chats', 'chat', badge)}${item('safety', 'Safety', 'shield')}${item('profile', 'Profile', 'user')}<a href="#" data-ask role="button">${I('help')}Help</a></div></nav>`;
+  return `<nav class="navbar" aria-label="Main"><div>${item('picks', 'Picks', 'heart')}${item('explore', 'Explore', 'compass')}${item('chats', 'Chats', 'chat', badge)}${item('safety', 'Safety', 'shield')}${item('profile', 'Profile', 'user')}<a href="#" data-ask role="button">${I('help')}Help</a></div></nav>`;
 }
 function render(html, dark = false) {
   document.body.style.background = dark ? 'var(--night)' : '';
@@ -132,6 +132,7 @@ function dialog({ title, body = '', ok = 'OK', cancel = 'Cancel', danger = false
 // ---------- routing ----------
 async function route() {
   clearInterval(pollTimer); clearInterval(tickTimer);
+  document.onkeydown = null;
   document.querySelectorAll('.celebrate,.toast,.ask,.ask-bg').forEach((e) => e.remove());
   closeSheet();
   await cfgReady;
@@ -144,6 +145,8 @@ async function route() {
   if (view === 'destiny') return destinyView(arg || ME.mode);
   if (view === 'kundli') return kundliView();
   if (ME.status !== 'verified' || view === 'verify') return verifyView();
+  refreshLocation();
+  if (view === 'explore') return exploreView(arg);
   if (view === 'chats') return chatsView();
   if (view === 'chat' && arg) return chatView(arg);
   if (view === 'drop') return dropView();
@@ -159,7 +162,7 @@ function authView(mode) {
   render(`<main class="screen fade-in" style="padding-top:24px">
     <div class="authhero">${WORDMARK}<div class="ahs" aria-hidden="true"><span class="o1">${OBJ('mask')}</span><span class="o2">${OBJ('kulhad')}</span><span class="o3">${OBJ('heart')}</span><span class="o4">${OBJ('star')}</span><span class="stk mint s1">${I('heart')}It’s mutual!</span><span class="stk s2">Chai pe chalein?</span></div></div>
     ${reset ? '<h1 style="font-size:42px;margin:28px 0 12px">Reset your password.</h1><p class="hint" style="font-size:15px;margin:0 0 24px">We’ll text a 6-digit code to your number.</p>' : `    <h1 style="font-size:42px;margin:28px 0 12px">${signup ? 'Hit pause on swiping.' : 'Welcome back.'}</h1>
-    <p class="hint" style="font-size:15px;margin:0 0 24px">${signup ? 'Every member is checked by a real person. You can have up to five matches at a time, and photos stay masked until you both choose to unmask. Live in Bangalore and Delhi NCR.' : 'Log in with your mobile number.'}</p>`}
+    <p class="hint" style="font-size:15px;margin:0 0 24px">${signup ? 'Every member is checked by a real person. You can have up to five matches at a time, and photos stay masked until you both choose to unmask. Live in Bangalore.' : 'Log in with your mobile number.'}</p>`}
     <form id="f">
       <div class="field"><label for="phone">Mobile number</label><input id="phone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="10-digit number" required></div>
       ${needCode ? `<div class="field" id="codef" hidden><label for="otp">6-digit code</label><input id="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="Sent by SMS"><span class="hint" id="codeh"></span></div>` : ''}
@@ -190,6 +193,59 @@ function authView(mode) {
       location.hash = signup ? 'profile' : 'picks'; route();
     } catch (x) { el('err').textContent = x.message; }
   };
+}
+
+// ---------- location (optional) ----------
+// Only an area is stored (rounded to about 1 km); other members see distance ranges, never a spot.
+function getPosition() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) return reject(new Error('Your browser can’t share location.'));
+    navigator.geolocation.getCurrentPosition((p) => resolve(p.coords), (e) => reject(new Error(e.code === 1 ? 'Location is blocked. Allow it for this site in your browser settings, then try again.' : 'We couldn’t get your location. Try again outdoors or with Wi-Fi on.')), { enableHighAccuracy: false, timeout: 12000, maximumAge: 600000 });
+  });
+}
+async function turnOnLocation() {
+  const c = await getPosition();
+  await api('/me/location', { method: 'PUT', body: { lat: c.latitude, lng: c.longitude } });
+  ME.located = true;
+  try { localStorage.setItem('locAt', String(Date.now())); } catch (e) { /* ignore */ }
+}
+async function refreshLocation() {
+  try {
+    if (!ME || !ME.located || !navigator.permissions) return;
+    if (Date.now() - Number(localStorage.getItem('locAt') || 0) < 6 * 3600000) return;
+    const st = await navigator.permissions.query({ name: 'geolocation' });
+    if (st.state === 'granted') await turnOnLocation();
+  } catch (e) { /* stays as it was */ }
+}
+
+// ---------- swipe ----------
+function swipeable(card, { left, right, rightBlocked }) {
+  const ph = card.querySelector('.ph');
+  ph.insertAdjacentHTML('beforeend', '<span class="stamp like" aria-hidden="true">Like</span><span class="stamp pass" aria-hidden="true">Pass</span>');
+  const sL = ph.querySelector('.stamp.like'), sP = ph.querySelector('.stamp.pass');
+  let x0 = null, y0 = 0, dx = 0, pid = null, dragging = false;
+  const reset = () => { card.style.transition = 'transform .25s ease'; card.style.transform = ''; sL.style.opacity = 0; sP.style.opacity = 0; };
+  card.addEventListener('pointerdown', (e) => { if (e.button > 0 || e.target.closest('button,a,input')) return; x0 = e.clientX; y0 = e.clientY; dx = 0; dragging = false; pid = e.pointerId; });
+  card.addEventListener('pointermove', (e) => {
+    if (x0 === null || e.pointerId !== pid) return;
+    const mx = e.clientX - x0, my = e.clientY - y0;
+    if (!dragging) {
+      if (Math.abs(mx) > 10 && Math.abs(mx) > Math.abs(my)) { dragging = true; card.setPointerCapture(pid); card.style.transition = 'none'; }
+      else if (Math.abs(my) > 10) { x0 = null; return; } else return;
+    }
+    dx = mx;
+    card.style.transform = `translateX(${dx}px) rotate(${dx / 22}deg)`;
+    sL.style.opacity = Math.max(0, Math.min(1, dx / 110)); sP.style.opacity = Math.max(0, Math.min(1, -dx / 110));
+  });
+  const end = () => {
+    if (x0 === null) return; x0 = null;
+    if (!dragging) return;
+    if (dx > 110 && !rightBlocked) { card.style.transition = 'transform .28s ease-out'; card.style.transform = 'translateX(140%) rotate(18deg)'; right(); }
+    else if (dx < -110) { card.style.transition = 'transform .28s ease-out'; card.style.transform = 'translateX(-140%) rotate(-18deg)'; left(); }
+    else { if (dx > 110 && rightBlocked) toast('End a match to like someone new'); reset(); }
+  };
+  card.addEventListener('pointerup', end); card.addEventListener('pointercancel', end);
+  card.style.touchAction = 'pan-y';
 }
 
 // ---------- profile ----------
@@ -232,6 +288,10 @@ function profileView(onboarding) {
       ${toggleRow('masked', 'mask', 'Masked', 'Your photos stay hidden until you and the other person both tap Unmask. It works both ways.', m.masked)}
       <div id="destinyrow"></div>
       <div id="extras"></div>
+
+      <h2 class="section-t">Nearby</h2>
+      ${toggleRow('loc', 'pin', 'Use my location', 'Optional. Shows nearby people first. We keep only your area (rounded to about 1 km), and others see a distance range, never where you are.', !!m.located)}
+      <div class="field" style="margin-top:12px"><label for="maxkm">Show people within</label><select id="maxkm">${[[0, 'Any distance'], [5, '5 km'], [10, '10 km'], [25, '25 km']].map(([v, l]) => `<option value="${v}" ${Number(m.max_km || 0) === v ? 'selected' : ''}>${l}</option>`).join('')}</select><span class="hint">Applies only to people who also share their location.</span></div>
 
       <h2 class="section-t">About you</h2>
       <div class="row">
@@ -302,6 +362,14 @@ function profileView(onboarding) {
     return d;
   };
   async function saveDraft() { try { Object.assign(ME, await api('/me', { method: 'PUT', body: collect() })); } catch (e) { /* best effort */ } }
+  el('loc').onchange = async () => {
+    const box = el('loc');
+    try {
+      if (box.checked) { await turnOnLocation(); toast('Location on. Nearby people come first.'); }
+      else { await api('/me/location', { method: 'PUT', body: { off: true } }); ME.located = false; toast('Location off. We deleted your area.'); }
+    } catch (x) { box.checked = !box.checked; toast(x.message); }
+  };
+  el('maxkm').onchange = async () => { try { ME = await api('/me', { method: 'PUT', body: { max_km: Number(el('maxkm').value) } }); toast('Saved'); } catch (x) { toast(x.message); } };
   el('pf').onsubmit = async (e) => {
     e.preventDefault();
     const d = collect();
@@ -382,13 +450,14 @@ function pickCard(p) {
   if (p.destiny) badges.push(`<span class="d">${I('star')}${p.destiny.pct}% Destiny match</span>`);
   if (p.kundli) badges.push(`<span>${I('kundli')}Kundli ${p.kundli.total} of 36</span>`);
   if (p.zodiac) badges.push(`<span>${esc(p.zodiac.name)}</span>`);
+  if (p.is_new) badges.push('<span>New this week</span>');
   const mine = (ME.tags || []).map((t) => t.toLowerCase());
   const shared = (p.tags || []).filter((t) => mine.includes(t.toLowerCase())).slice(0, 2);
   const facts = [['Height', p.height_cm ? fmtHeight(p.height_cm) : ''], ['Food', p.diet], ['Religion', p.religion], ['Manglik', p.manglik ? (p.manglik === 'yes' ? 'Yes' : 'No') : '']].filter((f) => f[1]);
   return `<article class="card pick fade-in" id="card">
     <div class="ph">${photo}${p.masked ? `<span class="masklabel">${I('mask')}Masked until you both unmask</span>` : ''}
       <div class="over"><h2>${esc(p.name)}, ${p.age}</h2>
-        <div class="city">${esc(p.city)}<span class="vtick">${I('check')}${p.id_verified ? 'ID verified' : 'Verified'}</span></div>
+        <div class="city">${p.distance ? `${I('pin')}${esc(p.distance)}` : esc(p.city)}<span class="vtick">${I('check')}${p.id_verified ? 'ID verified' : 'Verified'}</span></div>
         ${badges.length ? `<div class="badges">${badges.join('')}</div>` : ''}</div>
     </div>
     <div class="body">
@@ -458,6 +527,13 @@ async function picksView() {
       <a class="btn ghost" href="#profile" style="margin-top:12px">Change city</a></div>`);
   }
   const full = !!data.focus_full;
+  let locAsk = !ME.located && !(() => { try { return localStorage.getItem('locAsk'); } catch (e) { return '1'; } })();
+  const locCard = () => locAsk ? `<div class="loccard" id="loccard">${I('pin')}<span><b>See people near you first</b>Optional. We only use your area, rounded to about 1 km, and show distance as a range.</span><div><button class="btn" id="locon" type="button">Turn on</button><button class="linkbtn" id="locno" type="button">Not now</button></div></div>` : '';
+  const bindLoc = () => {
+    if (!el('locon')) return;
+    el('locon').onclick = async () => { try { await turnOnLocation(); toast('Location on. Nearby people come first.'); picksView(); } catch (x) { toast(x.message); } };
+    el('locno').onclick = () => { try { localStorage.setItem('locAsk', '1'); } catch (e) { /* ignore */ } locAsk = false; el('loccard').remove(); };
+  };
   const fullBar = full ? `<div class="fullbar">${I('pause')}<span><b>You have five matches.</b> Keep exploring. To like someone new, end one of your matches.</span><a href="#chats">Chats</a></div>` : '';
   const picks = data.picks;
   let i = 0;
@@ -469,14 +545,21 @@ async function picksView() {
         <p class="hint">That’s everyone who fits your category, city and age range right now. New members are verified every day, so check back soon, or widen your preferences to see more.</p>
         <a class="btn ghost" href="#profile" style="margin-top:12px">Adjust preferences</a></div>`);
     }
-    screen(`${fullBar}<div class="counter">${i + 1} of ${picks.length}</div>
+    screen(`${fullBar}${locCard()}<div class="counter">${i + 1} of ${picks.length}</div>
       ${pickCard(p)}
       <div class="actions">
         <button class="round" id="pass" aria-label="${full ? 'Next profile' : 'Pass on ' + esc(p.name)}">${I(full ? 'back' : 'x')}</button>
         <button class="btn" id="like" style="flex:1;min-height:56px;border-radius:28px" ${full ? 'disabled' : ''}>${full ? 'End a match to like' : p.masked ? 'Like, stay masked' : 'Like'}</button>
       </div>
       <p class="hint" style="text-align:center">${full ? 'Browsing doesn’t use anything up. People you skip here stay in your picks.' : `If ${esc(p.name)} likes you back, it’s a match. You have ${data.active} of ${CFG.focus} matches.`}</p>`);
-    if (full) { el('pass').onclick = () => { i++; show(); }; return; }
+    bindLoc();
+    const next = () => { i++; show(); };
+    if (full) {
+      el('pass').onclick = next;
+      swipeable(el('card'), { left: () => setTimeout(next, 260), right: () => {}, rightBlocked: true });
+      document.onkeydown = (e) => { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') next(); };
+      return;
+    }
     const card = el('card');
     const act = async (kind) => {
       card.classList.add(kind === 'like' ? 'out-right' : 'out-left');
@@ -488,8 +571,105 @@ async function picksView() {
     };
     el('pass').onclick = () => act('pass');
     el('like').onclick = () => act('like');
+    swipeable(card, { left: () => act('pass'), right: () => act('like') });
+    document.onkeydown = (e) => { if (document.querySelector('.sheet,.celebrate')) return; if (e.key === 'ArrowRight') act('like'); if (e.key === 'ArrowLeft') act('pass'); };
+    if (i === 0 && !(() => { try { return localStorage.getItem('swipeTip'); } catch (e) { return '1'; } })()) {
+      toast('Tip: swipe right to like, left to pass');
+      try { localStorage.setItem('swipeTip', '1'); } catch (e) { /* ignore */ }
+    }
   };
   show();
+}
+
+// ---------- explore ----------
+const exploreHead = (tab) => `<div class="top"><h1>Explore</h1>${catTag(ME.mode, '#profile')}</div>
+  <div class="seg" role="tablist"><a href="#explore" role="tab" aria-selected="${tab === 'people'}">People</a><a href="#explore/spots" role="tab" aria-selected="${tab === 'spots'}">Date spots</a></div>`;
+async function exploreView(arg) {
+  if (arg === 'spots') return spotsView();
+  let view = sessionStorage.getItem('xview') || (ME.located ? 'near' : 'new'), tag = '';
+  const load = async () => {
+    render(`<main class="screen">${exploreHead('people')}<p class="hint">Loading…</p></main>${navbar('explore')}`);
+    let d;
+    try { d = await api('/explore?view=' + view + (tag ? '&tag=' + encodeURIComponent(tag) : '')); } catch (x) { toast(x.message); return; }
+    if (!d.live) {
+      return render(`<main class="screen">${exploreHead('people')}<div class="empty">${EMOBJ('pin')}<h2>PAUSE isn’t in ${esc(ME.city)} yet</h2><p class="hint">We’re live in ${esc(CFG.live_cities.join(' and '))}.</p></div></main>${navbar('explore')}`);
+    }
+    const views = [['near', 'Near you'], ['new', 'New this week'], ['shared', 'Shared interests']].concat(ME.destiny ? [['destiny', 'Best Destiny']] : []);
+    const tile = (p, k) => {
+      const sub = (view === 'shared' && p.shared.length) ? p.shared.slice(0, 2).join(', ') : p.distance || (p.is_new ? 'New this week' : p.city);
+      return `<button class="tile" data-k="${k}" type="button" aria-label="${esc(p.name)}, ${p.age}">
+        ${p.photos[0] ? `<img src="/api/photo/${p.photos[0].id}" alt="" loading="lazy">` : `<span class="noimg">${initial(p.name)}</span>`}
+        ${p.masked ? `<span class="tmask">${I('mask')}</span>` : ''}${p.destiny ? `<span class="tdest">${I('star')}${p.destiny.pct}%</span>` : ''}
+        <span class="tcap"><b>${esc(p.name)}, ${p.age}</b><small>${esc(sub)}</small></span></button>`;
+    };
+    render(`<main class="screen fade-in">${exploreHead('people')}
+      ${d.focus_full ? `<div class="fullbar">${I('pause')}<span><b>You have five matches.</b> Browse freely; end one to like someone new.</span><a href="#chats">Chats</a></div>` : ''}
+      <div class="chips xchips">${views.map(([k, v]) => `<button type="button" class="pill" data-view="${k}" aria-pressed="${view === k && !tag}">${k === 'near' ? I('pin') : ''}${v}</button>`).join('')}</div>
+      ${d.tags.length ? `<div class="chips xtags">${d.tags.map((t) => `<button type="button" class="chip" data-tag="${esc(t)}" aria-pressed="${tag === t}">${esc(t)}</button>`).join('')}</div>` : ''}
+      ${view === 'near' && !d.located ? `<div class="loccard">${I('pin')}<span><b>Turn on location to sort by distance</b>Optional. We only keep your area, rounded to about 1 km.</span><div><button class="btn" id="xloc" type="button">Turn on</button></div></div>` : ''}
+      ${d.people.length ? `<div class="grid">${d.people.map(tile).join('')}</div>` : `<div class="empty">${EMOBJ('moon')}<h2>Nobody here yet</h2><p class="hint">${view === 'shared' ? 'Add more interests to your profile to find people who share them.' : view === 'destiny' ? 'Nobody with Destiny on matches you right now.' : 'You’ve seen everyone who fits for now. New members are verified every day.'}</p></div>`}
+    </main>${navbar('explore')}`);
+    document.querySelectorAll('[data-view]').forEach((b) => b.onclick = () => { view = b.dataset.view; tag = ''; sessionStorage.setItem('xview', view); load(); });
+    document.querySelectorAll('[data-tag]').forEach((b) => b.onclick = () => { tag = tag === b.dataset.tag ? '' : b.dataset.tag; load(); });
+    if (el('xloc')) el('xloc').onclick = async () => { try { await turnOnLocation(); load(); } catch (x) { toast(x.message); } };
+    document.querySelectorAll('.tile').forEach((t) => t.onclick = () => {
+      const p = d.people[+t.dataset.k];
+      const sh = openSheet(`<div class="xsheet">${pickCard(p)}</div>
+        <div class="actions"><button class="round" id="xpass" aria-label="${d.focus_full ? 'Close' : 'Pass on ' + esc(p.name)}">${I('x')}</button>
+        <button class="btn" id="xlike" style="flex:1;min-height:56px;border-radius:28px" ${d.focus_full ? 'disabled' : ''}>${d.focus_full ? 'End a match to like' : p.masked ? 'Like, stay masked' : 'Like'}</button></div>`);
+      sh.classList.add('tall');
+      const gone = () => { closeSheet(); t.remove(); };
+      sh.querySelector('#xpass').onclick = async () => { if (d.focus_full) return closeSheet(); try { await api('/like/' + p.id, { method: 'POST', body: { kind: 'pass' } }); gone(); } catch (x) { toast(x.message); } };
+      sh.querySelector('#xlike').onclick = async () => {
+        try { const r = await api('/like/' + p.id, { method: 'POST', body: { kind: 'like' } }); gone(); if (r.matched) celebrate(p, r.match_id, r.masked); else toast('Liked. If it’s mutual, you’ll match.'); }
+        catch (x) { toast(x.message); }
+      };
+    });
+  };
+  load();
+}
+
+// ---------- date spots map ----------
+let leafletReady;
+function loadLeaflet() {
+  if (!leafletReady) leafletReady = new Promise((resolve, reject) => {
+    const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = '/vendor/leaflet/leaflet.css'; document.head.appendChild(css);
+    const js = document.createElement('script'); js.src = '/vendor/leaflet/leaflet.js'; js.onload = () => resolve(window.L); js.onerror = () => { leafletReady = null; reject(new Error('The map didn’t load. Check your connection.')); };
+    document.head.appendChild(js);
+  });
+  return leafletReady;
+}
+let SPOTS = null;
+async function spotsView() {
+  render(`<main class="screen">${exploreHead('spots')}<p class="hint">Loading the map…</p></main>${navbar('explore')}`);
+  try { SPOTS = SPOTS || await api('/spots'); } catch (x) { toast(x.message); return; }
+  const kinds = [...new Set(SPOTS.map((s) => s.kind))];
+  render(`<main class="screen fade-in">${exploreHead('spots')}
+    <p class="hint" style="margin:-4px 0 12px">Busy, public places in Bangalore that work well for a first meeting. Share your date plan from Safety before you go.</p>
+    <div class="map" id="map" role="region" aria-label="Map of date spots"></div>
+    <div class="chips xtags" style="margin-top:14px"><button type="button" class="chip" data-kind="" aria-pressed="true">All</button>${kinds.map((k) => `<button type="button" class="chip" data-kind="${esc(k)}" aria-pressed="false">${esc(k)}</button>`).join('')}</div>
+    <div class="spots" id="spots"></div>
+  </main>${navbar('explore')}`);
+  let L;
+  try { L = await loadLeaflet(); } catch (x) { el('map').innerHTML = `<p class="hint" style="padding:16px">${esc(x.message)}</p>`; }
+  let map = null; const pins = {};
+  if (L && el('map')) {
+    map = L.map('map', { scrollWheelZoom: false, zoomControl: true }).setView([12.965, 77.61], 12);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' }).addTo(map);
+    for (const sp of SPOTS) {
+      pins[sp.id] = L.marker([sp.lat, sp.lng], { icon: L.divIcon({ className: 'spotpin', html: '<i></i>', iconSize: [30, 30], iconAnchor: [15, 28] }), title: sp.name })
+        .addTo(map).bindPopup(`<b>${esc(sp.name)}</b><br>${esc(sp.kind)}, ${esc(sp.area)}`);
+    }
+  }
+  const list = (kind) => {
+    el('spots').innerHTML = SPOTS.filter((s) => !kind || s.kind === kind).map((sp) => `<div class="spot" data-id="${sp.id}">
+      <div><b>${esc(sp.name)}</b><small>${esc(sp.kind)}, ${esc(sp.area)}</small><p>${esc(sp.note)}</p></div>
+      <a class="linkbtn" href="https://www.google.com/maps/search/?api=1&query=${sp.lat},${sp.lng}" target="_blank" rel="noopener">Directions</a></div>`).join('');
+    el('spots').querySelectorAll('.spot').forEach((d) => d.onclick = (e) => { if (e.target.closest('a') || !map) return; const sp = SPOTS.find((x) => x.id === d.dataset.id); map.flyTo([sp.lat, sp.lng], 15, { duration: 0.6 }); pins[sp.id].openPopup(); el('map').scrollIntoView({ behavior: 'smooth', block: 'center' }); });
+    if (map) { const shown = SPOTS.filter((s) => !kind || s.kind === kind); for (const sp of SPOTS) { const on = shown.includes(sp); if (on && !map.hasLayer(pins[sp.id])) pins[sp.id].addTo(map); if (!on && map.hasLayer(pins[sp.id])) map.removeLayer(pins[sp.id]); } }
+  };
+  document.querySelectorAll('[data-kind]').forEach((b) => b.onclick = () => { document.querySelectorAll('[data-kind]').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); list(b.dataset.kind); });
+  list('');
 }
 async function dropView() {
   render(`<main class="screen"><div class="top"><h1>Destiny</h1></div><p class="hint">Opening tonight’s match…</p></main>${navbar('picks')}`);
@@ -735,13 +915,25 @@ async function chatView(id) {
     el('mbtn').onclick = () => {
       if (document.querySelector('.menu')) { document.querySelector('.menu').remove(); return; }
       const menu = document.createElement('div'); menu.className = 'menu';
-      menu.innerHTML = `<button data-a="date">${I('calendar')}Share date plan</button><button data-a="close">${I('minus')}End match politely</button><button data-a="report">${I('flag')}Report</button><button data-a="block">${I('block')}Block</button>`;
+      menu.innerHTML = `<button data-a="spot">${I('pin')}Suggest a date spot</button><button data-a="date">${I('calendar')}Share date plan</button><button data-a="close">${I('minus')}End match politely</button><button data-a="report">${I('flag')}Report</button><button data-a="block">${I('block')}Block</button>`;
       document.querySelector('.night').appendChild(menu);
       menu.onclick = async (e) => {
         const b = e.target.closest('button'); if (!b) return;
         const a = b.dataset.a;
         menu.remove();
         if (a === 'date') { sessionStorage.setItem('back', '#chat/' + id); location.hash = 'safety'; return; }
+        if (a === 'spot') {
+          try { SPOTS = SPOTS || await api('/spots'); } catch (x) { toast(x.message); return; }
+          const sh = openSheet(`<h2 style="margin:4px 0 4px;font-size:24px">Suggest a date spot</h2><p class="hint" style="margin:0 0 12px">Busy, public places. Tap one to add it to your message.</p>
+            <div class="spots compact">${SPOTS.map((sp) => `<button type="button" class="spot" data-id="${sp.id}"><div><b>${esc(sp.name)}</b><small>${esc(sp.kind)}, ${esc(sp.area)}</small></div></button>`).join('')}</div>`);
+          sh.classList.add('tall');
+          sh.querySelectorAll('.spot').forEach((b) => b.onclick = () => {
+            const sp = SPOTS.find((x) => x.id === b.dataset.id);
+            closeSheet(); const m = el('msg'); if (!m) return;
+            m.value = `How about ${sp.name} in ${sp.area}? ${sp.note}`; m.focus();
+          });
+          return;
+        }
         if (a === 'close' && await dialog({ title: 'End this match?', body: 'The chat closes and one of your five match slots frees up. ' + o.name + ' sees a short goodbye note.', ok: 'End match', danger: true })) { await api(`/matches/${id}/close`, { method: 'POST' }); location.hash = 'chats'; }
         if (a === 'report') { const reason = await dialog({ title: 'Report ' + o.name, body: 'A member of our team reviews every report. Reporting also blocks them.', input: 'What happened?', ok: 'Report and block', danger: true }); if (reason !== false) { await api('/report/' + o.id, { method: 'POST', body: { reason } }); toast('Reported and blocked'); location.hash = 'chats'; } }
         if (a === 'block' && await dialog({ title: 'Block ' + o.name + '?', body: 'You won’t see each other again and this chat ends.', ok: 'Block', danger: true })) { await api('/block/' + o.id, { method: 'POST' }); location.hash = 'chats'; }

@@ -10,6 +10,7 @@ const cookieSession = require('cookie-session');
 const sharp = require('sharp');
 const kundli = require('./kundli');
 const destiny = require('./destiny');
+const SPOTS = require('./spots');
 const help = require('./help');
 
 const PORT = process.env.PORT || 3000;
@@ -33,7 +34,7 @@ const q = (text, params) => pool.query(text, params);
 
 const MODES = ['steady', 'forever', 'afterdark'];
 const MODE_NAMES = { steady: 'Steady', forever: 'Forever', afterdark: 'After Dark' };
-const LIVE_CITIES = (process.env.LIVE_CITIES || 'Bangalore,Delhi NCR').split(',').map((c) => c.trim()).filter(Boolean);
+const LIVE_CITIES = (process.env.LIVE_CITIES || 'Bangalore').split(',').map((c) => c.trim()).filter(Boolean);
 function normCity(c) {
   const v = String(c || '').trim().toLowerCase().replace(/\s+/g, ' ');
   if (!v) return '';
@@ -92,6 +93,10 @@ async function migrate() {
   ALTER TABLE photos ADD COLUMN IF NOT EXISTS token TEXT;
   CREATE UNIQUE INDEX IF NOT EXISTS photos_token ON photos(token);
   ALTER TABLE verifications ADD COLUMN IF NOT EXISTS id_last4 TEXT DEFAULT '';
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS lat DOUBLE PRECISION;
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS lng DOUBLE PRECISION;
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS loc_at TIMESTAMPTZ;
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS max_km INT DEFAULT 0;
   ALTER TABLE users ADD COLUMN IF NOT EXISTS insta TEXT DEFAULT '';
   ALTER TABLE users ADD COLUMN IF NOT EXISTS linkedin TEXT DEFAULT '';
   ALTER TABLE users ADD COLUMN IF NOT EXISTS id_verified BOOLEAN DEFAULT FALSE;
@@ -270,7 +275,7 @@ async function meJson(u) {
     ...publicUser(u, await photoIds(u.id)), phone: u.phone, interested: u.interested, dob: u.dob, any_city: u.any_city,
     company: u.company, hide_company: u.hide_company, hidden_phones: u.hidden_phones, age_min: u.age_min, age_max: u.age_max,
     trusted_name: u.trusted_name, trusted_phone: u.trusted_phone, status: u.status, reject_reason: u.reject_reason,
-    insta: u.insta || '', linkedin: u.linkedin || '', id_pending: !!u.id_pending,
+    insta: u.insta || '', linkedin: u.linkedin || '', id_pending: !!u.id_pending, located: u.lat != null, max_km: u.max_km || 0,
     mode_changed_at: u.mode_changed_at, destiny: u.destiny, paused: u.paused, show_zodiac: u.show_zodiac, zodiac: zodiacOf(u.dob),
     religion: u.religion || '', same_religion: u.same_religion, kundli_on: u.kundli_on, kundli_min: u.kundli_min,
     birth_time: u.birth_time, birth_place: u.birth_place, manglik: u.manglik, chart: kundli.chart(u.moon_long),
@@ -387,6 +392,7 @@ app.put('/api/me', authW, wrap(async (req, res) => {
   const height = b.height_cm === '' || b.height_cm === null ? null : (parseInt(b.height_cm ?? u.height_cm, 10) || null);
   const kmin = [0, 18, 24, 28].includes(parseInt(b.kundli_min, 10)) ? parseInt(b.kundli_min, 10) : u.kundli_min;
   const bool = (k) => (typeof b[k] === 'boolean' ? b[k] : u[k]);
+  if (b.max_km !== undefined) { const mk = [0, 5, 10, 25].includes(Number(b.max_km)) ? Number(b.max_km) : 0; await q('UPDATE users SET max_km=$2 WHERE id=$1', [u.id, mk]); }
   if ([b.name, b.bio, b.prompt_a, ...(Array.isArray(b.tags) ? b.tags : [])].some((t) => t && hasContact(t))) {
     return err(res, 400, 'Keep numbers, emails and social handles out of your profile. You can share them in a chat once you both agree.');
   }
@@ -420,6 +426,33 @@ app.delete('/api/me/photos/:token', authW, wrap(async (req, res) => {
   const rows = await photoIds(req.user.id);
   for (let i = 0; i < rows.length; i++) await q('UPDATE photos SET idx=$2 WHERE token=$1', [rows[i].id, i]);
   res.json(await photoIds(req.user.id));
+}));
+
+// ---------- location (optional) ----------
+// We keep an area, not a spot: coordinates are snapped to a ~1 km grid, and other members only ever see a distance range.
+const snap = (v) => Math.round(v * 100) / 100;
+function kmBetween(a, b) {
+  if (a.lat == null || b.lat == null) return null;
+  const R = 6371, dLat = (b.lat - a.lat) * Math.PI / 180, dLng = (b.lng - a.lng) * Math.PI / 180;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * Math.PI / 180) * Math.cos(b.lat * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+function distLabel(km) {
+  if (km == null) return null;
+  if (km < 2) return 'Under 2 km away';
+  if (km < 5) return '2 to 5 km away';
+  if (km < 10) return '5 to 10 km away';
+  if (km < 25) return '10 to 25 km away';
+  return 'More than 25 km away';
+}
+app.put('/api/me/location', authW, wrap(async (req, res) => {
+  const b = req.body || {};
+  if (b.off) { await q('UPDATE users SET lat=NULL, lng=NULL, loc_at=NULL WHERE id=$1', [req.user.id]); return res.json({ ok: true, on: false }); }
+  const lat = Number(b.lat), lng = Number(b.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < 6 || lat > 37.5 || lng < 68 || lng > 97.5) return err(res, 400, 'That location is outside India');
+  if (limited('loc:' + req.user.id, 30, 60 * 60000)) return err(res, 429, 'Too many location updates');
+  await q('UPDATE users SET lat=$2, lng=$3, loc_at=now() WHERE id=$1', [req.user.id, snap(lat), snap(lng)]);
+  res.json({ ok: true, on: true });
 }));
 
 // ---------- verification: social link (required), ID (optional badge) ----------
@@ -565,7 +598,9 @@ app.get('/api/photo/:token', authW, wrap(async (req, res) => {
 }));
 
 // ---------- discover ----------
-async function candidates(u, limit = 60) {
+async function candidates(u, limit = 60, sort = 'near') {
+  const DIST = `(CASE WHEN $14::float8 IS NULL OR o.lat IS NULL THEN NULL ELSE 111.32 * sqrt(power(o.lat - $14::float8, 2) + power((o.lng - $15::float8) * cos(radians($14::float8)), 2)) END)`;
+  const order = sort === 'new' ? 'o.created_at DESC' : sort === 'random' ? 'random()' : `COALESCE(floor(${DIST} / 3), 999), random()`;
   const { rows } = await q(`
     SELECT o.* FROM users o
     WHERE o.id <> $1 AND o.status = 'verified' AND o.mode = $2 AND NOT o.paused
@@ -579,10 +614,11 @@ async function candidates(u, limit = 60) {
       AND (SELECT count(*) FROM matches m WHERE (m.a_id = o.id OR m.b_id = o.id) AND NOT m.closed) < ${FOCUS}
       AND NOT ($10 = ANY(o.hidden_phones)) AND NOT (o.phone = ANY($11::text[]))
       AND NOT ($12 <> '' AND lower(o.company) = lower($12) AND ($13 OR o.hide_company))
-    ORDER BY (SELECT count(*) FROM likes l2 WHERE l2.from_id = o.id AND l2.to_id = $1) DESC, random()
+      AND (${DIST} IS NULL OR (($16 = 0 OR ${DIST} <= $16) AND (COALESCE(o.max_km, 0) = 0 OR ${DIST} <= o.max_km)))
+    ORDER BY (SELECT count(*) FROM likes l2 WHERE l2.from_id = o.id AND l2.to_id = $1) DESC, ${order}
     LIMIT ${limit}`,
   [u.id, u.mode, u.interested, u.gender, u.age_min, u.age_max, ageOf(u.dob), u.any_city, u.city,
-    u.phone, u.hidden_phones, u.company, u.hide_company]);
+    u.phone, u.hidden_phones, u.company, u.hide_company, u.lat, u.lng, u.max_km || 0]);
   let list = rows;
   if (u.mode === 'forever') {
     if (u.same_religion && u.religion) list = list.filter((o) => o.religion === u.religion);
@@ -594,6 +630,10 @@ async function candidates(u, limit = 60) {
 async function enrich(u, o, myAnswers) {
   const view = publicUser(o, await photoIds(o.id), u.mode);
   view.masked = !!(u.masked || o.masked);
+  view.distance = distLabel(kmBetween(u, o));
+  const mine = (u.tags || []).map((t) => t.toLowerCase());
+  view.shared = (o.tags || []).filter((t) => mine.includes(t.toLowerCase()));
+  view.is_new = Date.now() - new Date(o.created_at).getTime() < 7 * 86400000;
   if (u.destiny && o.destiny && myAnswers) {
     const s = destiny.score(u.mode, myAnswers, await destinyAnswers(o.id, u.mode));
     if (s) view.destiny = s;
@@ -615,6 +655,29 @@ app.get('/api/picks', authW, verified, wrap(async (req, res) => {
   if (u.destiny) out.sort((a, b) => (b.destiny ? b.destiny.pct : -1) - (a.destiny ? a.destiny.pct : -1));
   res.json({ live: true, active, focus_full: active >= FOCUS, picks: out.slice(0, 10) });
 }));
+// Explore: browse a grid instead of one card at a time. Same people and rules as picks.
+app.get('/api/explore', authW, verified, wrap(async (req, res) => {
+  const u = req.user;
+  const active = await activeCount(u.id);
+  if (!LIVE_CITIES.includes(u.city)) return res.json({ live: false, active, people: [] });
+  const view = ['near', 'new', 'shared', 'destiny'].includes(req.query.view) ? req.query.view : 'near';
+  const tag = clean(req.query.tag, 40).toLowerCase();
+  const myAnswers = u.destiny ? await destinyAnswers(u.id, u.mode) : null;
+  const list = await candidates(u, 60, view === 'new' ? 'new' : view === 'near' ? 'near' : 'random');
+  let out = [];
+  for (const o of list) {
+    if (tag && !(o.tags || []).some((t) => t.toLowerCase() === tag)) continue;
+    out.push(await enrich(u, o, myAnswers));
+  }
+  if (view === 'shared') out = out.filter((p) => p.shared.length).sort((a, b) => b.shared.length - a.shared.length);
+  if (view === 'destiny') out = out.filter((p) => p.destiny).sort((a, b) => b.destiny.pct - a.destiny.pct);
+  const tags = {};
+  for (const o of list) for (const t of o.tags || []) { const k = t.toLowerCase(); tags[k] = (tags[k] || 0) + 1; }
+  res.json({ live: true, active, focus_full: active >= FOCUS, located: u.lat != null, view, people: out.slice(0, 30),
+    tags: Object.entries(tags).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([t]) => t) });
+}));
+// Public date spots for the map. Busy, public places only.
+app.get('/api/spots', authW, (req, res) => res.json(SPOTS));
 
 // The 9 pm Destiny drop: one best-fit person a day for people with Destiny on.
 app.get('/api/destiny/drop', authW, verified, wrap(async (req, res) => {
@@ -911,6 +974,7 @@ function admin(req, res, next) {
 }
 app.get('/api/admin/pending', admin, wrap(async (req, res) => {
   const { rows } = await q(`SELECT u.id, u.name, u.gender, u.dob, u.city, u.phone, u.mode, u.status, u.insta, u.linkedin, u.id_pending,
+      u.interested, u.bio, u.prompt_q, u.prompt_a, u.tags, u.created_at, u.reject_reason,
       v.id_type, v.id_last4, v.submitted_at, (v.id_image IS NOT NULL AND u.id_pending) AS has_id
     FROM users u LEFT JOIN verifications v ON v.user_id=u.id
     WHERE u.status='pending' OR u.id_pending ORDER BY COALESCE(v.submitted_at, u.created_at)`);
@@ -932,8 +996,50 @@ app.get('/api/admin/stats', admin, wrap(async (req, res) => {
     (SELECT count(*) FROM messages WHERE flag IS NOT NULL)::int AS scam_flags,
     (SELECT count(*) FROM waitlist)::int AS waitlist,
     (SELECT count(*) FROM reports WHERE NOT resolved)::int AS open_reports,
-    (SELECT count(*) FROM support_tickets WHERE NOT resolved)::int AS open_tickets`);
-  res.json(rows[0]);
+    (SELECT count(*) FROM support_tickets WHERE NOT resolved)::int AS open_tickets,
+    (SELECT count(*) FROM users WHERE status='pending' OR id_pending)::int AS pending,
+    (SELECT count(*) FROM users WHERE id_verified)::int AS id_verified,
+    (SELECT count(*) FROM users WHERE lat IS NOT NULL)::int AS located,
+    (SELECT count(*) FROM users WHERE status='banned')::int AS banned,
+    (SELECT count(*) FROM users WHERE created_at > now() - interval '7 days')::int AS signups_7d,
+    (SELECT count(*) FROM matches WHERE created_at > now() - interval '1 day')::int AS matches_24h,
+    (SELECT count(*) FROM messages WHERE NOT system AND created_at > now() - interval '1 day')::int AS messages_24h,
+    (SELECT count(*) FROM likes WHERE kind='like' AND created_at > now() - interval '1 day')::int AS likes_24h`);
+  const { rows: days } = await q(`SELECT to_char(d::date, 'YYYY-MM-DD') AS day,
+      (SELECT count(*) FROM users u WHERE u.created_at::date = d::date)::int AS signups,
+      (SELECT count(*) FROM matches m WHERE m.created_at::date = d::date)::int AS matches
+    FROM generate_series(current_date - 13, current_date, interval '1 day') d ORDER BY d`);
+  const { rows: cities } = await q("SELECT city, count(*)::int AS n FROM users WHERE city<>'' GROUP BY city ORDER BY n DESC LIMIT 6");
+  res.json({ ...rows[0], days, cities });
+}));
+app.get('/api/admin/members', admin, wrap(async (req, res) => {
+  const term = clean(req.query.q, 60).toLowerCase(), st = ['new', 'pending', 'verified', 'rejected', 'banned'].includes(req.query.status) ? req.query.status : '';
+  const { rows } = await q(`SELECT u.id, u.name, u.phone, u.gender, u.dob, u.city, u.mode, u.status, u.id_verified, u.insta, u.linkedin, u.created_at, u.paused,
+      (SELECT count(*) FROM reports r WHERE r.reported=u.id)::int AS reports,
+      (SELECT count(*) FROM matches m WHERE (m.a_id=u.id OR m.b_id=u.id) AND NOT m.closed)::int AS matches
+    FROM users u
+    WHERE ($1 = '' OR lower(u.name) LIKE '%' || $1 || '%' OR u.phone LIKE '%' || $1 || '%' OR lower(u.insta) LIKE '%' || $1 || '%' OR lower(u.linkedin) LIKE '%' || $1 || '%')
+      AND ($2 = '' OR u.status = $2)
+    ORDER BY u.created_at DESC LIMIT 100`, [term, st]);
+  res.json(rows.map((r) => ({ ...r, age: ageOf(r.dob) })));
+}));
+app.get('/api/admin/member/:uid', admin, wrap(async (req, res) => {
+  const { rows } = await q('SELECT * FROM users WHERE id=$1', [req.params.uid]);
+  if (!rows[0]) return err(res, 404, 'Not found');
+  const u = rows[0];
+  const { rows: reps } = await q('SELECT r.reason, r.created_at, r.resolved FROM reports r WHERE r.reported=$1 ORDER BY r.id DESC LIMIT 20', [u.id]);
+  res.json({ id: u.id, name: u.name, phone: u.phone, gender: u.gender, interested: u.interested, age: ageOf(u.dob), city: u.city, mode: u.mode,
+    status: u.status, id_verified: u.id_verified, insta: u.insta, linkedin: u.linkedin, bio: u.bio, prompt_q: u.prompt_q, prompt_a: u.prompt_a,
+    tags: u.tags || [], created_at: u.created_at, paused: u.paused, reject_reason: u.reject_reason, photos: await photoIds(u.id), reports: reps });
+}));
+app.get('/api/admin/waitlist', admin, wrap(async (req, res) => {
+  const { rows } = await q('SELECT phone, city, created_at FROM waitlist ORDER BY id DESC LIMIT 200');
+  res.json(rows);
+}));
+app.post('/api/admin/unban/:uid', admin, wrap(async (req, res) => {
+  const { rows } = await q("UPDATE users SET status='verified' WHERE id=$1 AND status='banned' RETURNING id_hash", [req.params.uid]);
+  if (rows[0] && rows[0].id_hash) await q('DELETE FROM banned_ids WHERE id_hash=$1', [rows[0].id_hash]);
+  res.json({ ok: true });
 }));
 app.get('/api/admin/verification/:uid/:kind', admin, wrap(async (req, res) => {
   const col = req.params.kind === 'selfie' ? 'selfie' : 'id_image';
@@ -996,6 +1102,7 @@ app.get('/api/config', (req, res) => res.json({
   brand: BRAND, live_cities: LIVE_CITIES, focus: FOCUS, otp: OTP_ON, id_types: Object.keys(ID_FORMATS), modes: MODE_NAMES, religions: RELIGIONS, diets: DIETS,
   nakshatras: kundli.NAK, rashis: kundli.RASHI, help_chips: help.CHIPS
 }));
+app.use('/vendor/leaflet', express.static(path.join(__dirname, 'node_modules', 'leaflet', 'dist'), { maxAge: '7d' }));
 app.use(express.static(path.join(__dirname, 'public'), { extensions: ['html'] }));
 app.get('/app', (req, res) => res.sendFile(path.join(__dirname, 'public', 'app.html')));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
