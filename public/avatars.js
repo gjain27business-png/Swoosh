@@ -11,15 +11,14 @@
   const INK = '#17101A';
   const BG = { coral: ['#FFE0D6', '#FF9E8A'], sun: ['#FFF3C4', '#FFD166'], mint: ['#DDF8EE', '#8FE6CC'], aqua: ['#D3F0F2', '#7FD0D6'], peach: ['#FFE9DA', '#FFBE95'], lilac: ['#ECE6FF', '#B9A8FF'] };
 
+  // Three fair, three brown.
   const PEOPLE = {
-    ananya: { g: 'f', skin: '#D2A07E', hair: '#22130F', hl: '#A8673A', style: 'waves', outfit: 'jacket', cloth: '#6F9BDB', top: '#FFFFFF', ear: 'hoops', lip: '#D45A6E', expr: 'smile', pose: 'fheart', bg: BG.coral },
-    kabir: { g: 'm', skin: '#B98160', hair: '#17100D', style: 'crop', outfit: 'hoodie', cloth: '#22222E', ear: 'pods', stubble: 1, expr: 'grin', pose: 'peace', bg: BG.sun },
-    meera: { g: 'f', skin: '#C98F6C', hair: '#1C110E', style: 'hipony', outfit: 'top', cloth: '#FF6B57', necklace: 1, ear: 'studs', shades: 1, lip: '#C2475C', expr: 'grin', pose: 'iced', bg: BG.mint },
-    arjun: { g: 'm', skin: '#A06B4B', hair: '#130B09', style: 'curlytop', outfit: 'tee', cloth: '#FAFAFA', chain: 1, expr: 'smirk', pose: 'thumbs', bg: BG.coral },
-    zoya: { g: 'f', skin: '#E2B394', hair: '#2B1610', hl: '#7E4527', style: 'buns', outfit: 'hoodie', cloth: '#B9A4FF', phones: 1, lip: '#E0607A', expr: 'wink', pose: 'selfie', bg: BG.aqua },
-    rohan: { g: 'm', skin: '#C48D69', hair: '#1A100C', style: 'flow', outfit: 'jacket', cloth: '#C79A6B', top: '#22222E', chain: 1, stubble: 1, expr: 'grin', pose: 'wave', bg: BG.peach },
-    isha: { g: 'f', skin: '#B7825F', hair: '#1A0F0C', style: 'curls', outfit: 'tee', cloth: '#FFD166', ear: 'hoops', lip: '#B8475A', expr: 'grin', pose: 'wave', bg: BG.lilac },
-    dev: { g: 'm', skin: '#AE7653', hair: '#140C0A', style: 'beanie', beanie: '#FF6B57', outfit: 'hoodie', cloth: '#7CE8C9', ear: 'pods', expr: 'grin', pose: 'selfie', bg: BG.sun }
+    ananya: { g: 'f', skin: '#F2CDB4', hair: '#2A1712', hl: '#B57A45', style: 'waves', outfit: 'jacket', cloth: '#6F9BDB', top: '#FFFFFF', ear: 'hoops', lip: '#D9576F', expr: 'smile', pose: 'fheart', bg: BG.coral },
+    kabir: { g: 'm', skin: '#EDC3A5', hair: '#1E140F', style: 'crop', outfit: 'hoodie', cloth: '#22222E', ear: 'pods', stubble: 1, expr: 'grin', pose: 'peace', bg: BG.sun },
+    zoya: { g: 'f', skin: '#F5D6C2', hair: '#3A2015', hl: '#8E5432', style: 'buns', outfit: 'hoodie', cloth: '#B9A4FF', phones: 1, lip: '#E0607A', expr: 'wink', pose: 'selfie', bg: BG.aqua },
+    meera: { g: 'f', skin: '#B67A55', hair: '#1C110E', style: 'hipony', outfit: 'top', cloth: '#FF6B57', necklace: 1, ear: 'studs', shades: 1, lip: '#B8435A', expr: 'grin', pose: 'iced', bg: BG.mint },
+    arjun: { g: 'm', skin: '#9A6444', hair: '#130B09', style: 'curlytop', outfit: 'tee', cloth: '#FAFAFA', chain: 1, expr: 'smirk', pose: 'thumbs', bg: BG.coral },
+    dev: { g: 'm', skin: '#A86F4C', hair: '#140C0A', style: 'beanie', beanie: '#FF6B57', outfit: 'hoodie', cloth: '#7CE8C9', ear: 'pods', expr: 'grin', pose: 'wave', bg: BG.lilac }
   };
 
   const FRAMES = { sticker: '-16 -10 272 290', portrait: '4 -26 232 290', circle: '24 10 192 192' };
