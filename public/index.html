@@ -7,7 +7,7 @@
 <meta name="description" content="PAUSE is dating for people who are done with endless swiping. Every member is ID-verified, you keep five conversations at a time, and photos open only when you both say yes. Live in Bangalore and Delhi NCR.">
 <meta property="og:title" content="PAUSE — Hit pause on swiping">
 <meta property="og:description" content="Meet someone worth slowing down for. Verified members, five conversations at a time, photos open only when you both say yes.">
-<meta name="theme-color" content="#C92E5C">
+<meta name="theme-color" content="#0B4A5C">
 <link rel="icon" href="/icon.svg">
 <link rel="manifest" href="/manifest.json">
 <link rel="stylesheet" href="/styles.css">
@@ -20,13 +20,13 @@ header.site nav{display:flex;gap:26px;margin-left:auto;font-size:14px;font-weigh
 header.site nav a{text-decoration:none;color:rgba(255,255,255,.85)}header.site nav a:hover{color:#fff}
 .cta{display:inline-flex;align-items:center;gap:8px;min-height:52px;padding:0 26px;border-radius:999px;font-weight:700;text-decoration:none;border:1.5px solid transparent;cursor:pointer;font-size:15px;font-family:var(--sans);transition:transform .15s,background .2s,box-shadow .2s}
 .cta:active{transform:scale(.98)}
-.cta.cream{background:#fff;color:var(--primary);box-shadow:0 14px 30px -14px rgba(60,10,40,.55)}.cta.cream:hover{background:var(--ivory)}
+.cta.cream{background:var(--coral);color:var(--coral-ink);box-shadow:0 14px 30px -14px rgba(4,30,44,.55)}.cta.cream:hover{background:var(--coral-hover)}
 .cta.ghost{background:transparent;border-color:rgba(255,255,255,.65);color:#fff}.cta.ghost:hover{background:rgba(255,255,255,.12)}
 .cta.rose{background:var(--primary);color:#fff}.cta.rose:hover{background:var(--primary-hover)}
 .cta.small{min-height:42px;padding:0 18px;font-size:14px}
 /* hero */
 .hero{position:relative;overflow:hidden;background:var(--dusk);color:#fff;padding:150px 0 110px}
-.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(60% 50% at 80% 30%,rgba(255,214,150,.35),transparent 70%),radial-gradient(50% 60% at 10% 90%,rgba(90,42,107,.55),transparent 70%)}
+.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(55% 50% at 80% 30%,rgba(255,107,87,.30),transparent 70%),radial-gradient(45% 55% at 8% 92%,rgba(124,232,201,.16),transparent 70%)}
 .hero .skyline{position:absolute;left:0;right:0;bottom:0;width:100%;height:auto;opacity:.35}
 .hero .wrap{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:40px;align-items:center}
 .hero .wrap>div:first-child{position:relative;z-index:5}
@@ -37,10 +37,10 @@ header.site nav a{text-decoration:none;color:rgba(255,255,255,.85)}header.site n
 .trust span{display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:600;padding:9px 14px;border-radius:999px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);backdrop-filter:blur(6px)}
 .trust .ic{width:17px;height:17px}
 .stack{position:relative;height:600px}
-.pcard{position:absolute;top:34px;left:58%;width:280px;border-radius:26px;overflow:hidden;background:#fff;color:var(--ink);box-shadow:0 40px 80px -30px rgba(40,10,40,.6)}
-.pcard .art{position:relative;aspect-ratio:4/5}
+.pcard{position:absolute;top:34px;left:58%;width:280px;border-radius:26px;overflow:hidden;background:#fff;color:var(--ink);box-shadow:0 40px 80px -30px rgba(4,30,44,.6)}
+.pcard .art{position:relative;aspect-ratio:4/5;overflow:hidden}
 .pcard .art svg{position:absolute;inset:0;width:100%;height:100%;display:block}
-.pcard .art::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 55%,rgba(29,18,41,.72));pointer-events:none}
+.pcard .art::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 55%,rgba(6,36,51,.72));pointer-events:none}
 .pcard .nm{position:absolute;left:18px;bottom:14px;color:#fff;z-index:1}
 .pcard .nm b{display:block;font-family:var(--display);font-weight:800;font-size:27px;line-height:1.1;letter-spacing:-.03em}
 .pcard .nm span{font-size:13px;display:inline-flex;gap:5px;align-items:center;color:#D8F5E5}
@@ -50,7 +50,7 @@ header.site nav a{text-decoration:none;color:rgba(255,255,255,.85)}header.site n
 .pcard.front{transform:translateX(-50%);top:0;width:310px;z-index:3}
 .pcard.front .art svg{filter:blur(16px);transform:scale(1.14);transition:filter 1.8s cubic-bezier(.2,.7,.2,1),transform 1.8s cubic-bezier(.2,.7,.2,1)}
 .pcard.front.open .art svg{filter:none;transform:none}
-.mlab{position:absolute;top:14px;left:14px;z-index:2;display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border-radius:999px;background:rgba(29,18,41,.55);backdrop-filter:blur(8px);font-size:12px;font-weight:600;color:#fff;transition:opacity .6s}
+.mlab{position:absolute;top:14px;left:14px;z-index:2;display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border-radius:999px;background:rgba(6,36,51,.55);backdrop-filter:blur(8px);font-size:12px;font-weight:600;color:#fff;transition:opacity .6s}
 .pcard.front.open .mlab{opacity:0}
 .mlab .ic{width:15px;height:15px}
 .drows{padding:6px 16px 4px}
@@ -58,86 +58,80 @@ header.site nav a{text-decoration:none;color:rgba(255,255,255,.85)}header.site n
 .drow:first-child{border-top:none}
 .drow b{font-weight:700;min-width:62px}
 .drow .st{color:var(--muted);flex:1}.drow .st.ok{color:var(--primary);font-weight:600}
-.dbtn{min-height:40px;padding:0 16px;border-radius:999px;border:none;background:var(--primary);color:#fff;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:7px;font-family:var(--sans)}
+.dbtn{min-height:40px;padding:0 16px;border-radius:999px;border:none;background:var(--coral);color:var(--coral-ink);font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:7px;font-family:var(--sans)}
 .dbtn .ic{width:16px;height:16px}.dbtn[disabled]{opacity:.45;cursor:default}
 .dcap{font-size:12.5px;color:var(--muted);margin:0;padding:4px 16px 16px;min-height:22px}
 .dcap button{background:none;border:none;color:var(--primary);font:inherit;font-weight:600;text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:0}
-.bubble{position:absolute;z-index:4;background:#fff;color:var(--ink);border-radius:18px;padding:10px 14px;box-shadow:0 24px 50px -20px rgba(40,10,40,.55);display:flex;align-items:center;gap:10px;font-size:13px;white-space:nowrap}
-.bubble b{font-weight:700;display:block}
-.bubble small{color:var(--muted)}
-.bubble.mutual{left:-4%;top:250px}
-.bubble.destiny{right:-6%;top:22px}
 .av2{display:flex}.av2 span{width:34px;height:34px;border-radius:17px;overflow:hidden;border:2px solid #fff;display:block}.av2 span+span{margin-left:-10px}
 .av2 svg{width:100%;height:100%;display:block}
-.star{width:34px;height:34px;border-radius:17px;background:var(--brass-soft);color:var(--brass);display:flex;align-items:center;justify-content:center}
 /* sections */
 section.s{padding:110px 0}
 h2.big{font-size:clamp(38px,4.6vw,60px);line-height:1;margin:0 0 18px;letter-spacing:-.04em}
 .sub{font-size:18px;color:var(--muted);line-height:1.6;max-width:54ch;margin:0}
 .faces{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;margin-top:44px}
-.faces span{width:84px;height:84px;border-radius:42px;overflow:hidden;display:block;box-shadow:0 14px 30px -18px rgba(40,10,40,.5)}
+.faces span{width:84px;height:84px;border-radius:42px;overflow:hidden;display:block;box-shadow:0 14px 30px -18px rgba(4,30,44,.5)}
 .faces span:nth-child(even){transform:translateY(18px)}
 .faces svg{width:100%;height:100%;display:block}
 .cats{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;margin-top:56px}
 .cat{border-radius:30px;padding:40px;position:relative;overflow:hidden}
-.cat.steady{background:linear-gradient(160deg,#FFE3E8,#FFC9D4)}
-.cat.forever{background:linear-gradient(160deg,#FFF0D6,#FFDCA3)}
+.cat.steady{background:linear-gradient(160deg,#FFE5DE,#FFCFC2)}
+.cat.forever{background:linear-gradient(160deg,#FFF4D6,#FFE3A0)}
 .cat h3{font-size:46px;margin:24px 0 10px;letter-spacing:-.04em}
 .cat p{font-size:17px;line-height:1.6;margin:0 0 22px;color:var(--muted);max-width:40ch}
 .cat ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px}
 .cat li{font-size:14px;font-weight:700;padding:8px 14px;border-radius:999px;background:rgba(255,255,255,.75);color:var(--heading)}
 .couple{display:flex}
-.couple span{width:92px;height:92px;border-radius:46px;overflow:hidden;border:4px solid rgba(255,255,255,.9);display:block;box-shadow:0 16px 30px -18px rgba(40,10,40,.5)}
+.couple span{width:92px;height:92px;border-radius:46px;overflow:hidden;border:4px solid rgba(255,255,255,.9);display:block;box-shadow:0 16px 30px -18px rgba(4,30,44,.5)}
 .couple span+span{margin-left:-22px}
 .couple svg{width:100%;height:100%;display:block}
-.adnote{margin-top:22px;padding:18px 22px;border-radius:18px;background:var(--midnight);color:#F0E6F4;font-size:15px;display:flex;gap:12px;align-items:center}
-.adnote .ic{color:#F6BE6B;flex:none}
+.adnote{margin-top:22px;padding:18px 22px;border-radius:18px;background:var(--midnight);color:#E0F0EC;font-size:15px;display:flex;gap:12px;align-items:center}
+.adnote .ic{color:var(--sun);flex:none}
 .band{background:var(--night);color:#fff;position:relative;overflow:hidden}
-.band::before{content:'';position:absolute;width:700px;height:700px;border-radius:50%;background:radial-gradient(circle,rgba(240,70,110,.28),transparent 65%);right:-200px;top:-260px}
+.band::before{content:'';position:absolute;width:700px;height:700px;border-radius:50%;background:radial-gradient(circle,rgba(255,107,87,.28),transparent 65%);right:-200px;top:-260px}
 .band .wrap{position:relative}
-.band h2.big{color:#fff}.band .sub{color:#D3C6D9}
+.band h2.big{color:#fff}.band .sub{color:#BCD6D3}
 .duo{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;margin-top:56px}
 .duo>div{background:var(--night2);border:1px solid var(--nline);border-radius:28px;padding:36px}
 .duo h3{font-size:38px;margin:22px 0 10px;color:#fff}
-.duo p{color:#D3C6D9;line-height:1.6;margin:0 0 24px}
+.duo p{color:#BCD6D3;line-height:1.6;margin:0 0 24px}
 .ba{display:flex;align-items:center;gap:16px}
 .ba span{width:104px;height:130px;border-radius:18px;overflow:hidden;display:block;position:relative}
 .ba svg{width:100%;height:100%;display:block}
 .ba span.blur svg{filter:blur(9px);transform:scale(1.15)}
-.ba i{font-style:normal;font-size:13px;color:#A898B2;text-align:center}
-.ba .ar{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;color:#F6BE6B;font-weight:600}
+.ba i{font-style:normal;font-size:13px;color:#8FB4B8;text-align:center}
+.ba .ar{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;color:#FFD166;font-weight:600}
 .why{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
-.why li{display:flex;gap:10px;padding:12px 14px;border-radius:14px;background:rgba(244,166,58,.12);font-size:14px;color:#FFE2B8}
-.why .ic{width:16px;height:16px;color:#F6BE6B;margin-top:2px;flex:none}
+.why li{display:flex;gap:10px;padding:12px 14px;border-radius:14px;background:rgba(255,209,102,.12);font-size:14px;color:#FFEBB8}
+.why .ic{width:16px;height:16px;color:#FFD166;margin-top:2px;flex:none}
 .steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px;margin:56px 0 0;padding:0}
 .steps li{list-style:none;background:#fff;border-radius:24px;padding:28px;border:1px solid var(--hair)}
 .steps .n{width:46px;height:46px;border-radius:23px;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:800;font-size:22px;color:#fff}
-.steps li:nth-child(1) .n{background:#FF7A59}.steps li:nth-child(2) .n{background:#F0466E}.steps li:nth-child(3) .n{background:#B2367E}.steps li:nth-child(4) .n{background:#7B3FA0}
+.steps li:nth-child(1) .n{background:var(--coral);color:var(--coral-ink)}.steps li:nth-child(2) .n{background:var(--sun);color:var(--coral-ink)}.steps li:nth-child(3) .n{background:var(--mint);color:var(--coral-ink)}.steps li:nth-child(4) .n{background:var(--primary)}
 .steps h3{font-size:23px;margin:18px 0 8px}
 .steps p{margin:0;color:var(--muted);font-size:15px;line-height:1.6}
-.five{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:56px;align-items:center;background:linear-gradient(135deg,#2B1A3D,#5A2A6B);color:#fff;border-radius:36px;padding:60px}
-.five h2{color:#fff;font-size:clamp(36px,3.9vw,54px)}.five .sub{color:#E3D6EA}
+.five{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:56px;align-items:center;background:linear-gradient(135deg,#08304A,#0B4A5C);color:#fff;border-radius:36px;padding:60px}
+.five h2{color:#fff;font-size:clamp(36px,3.9vw,54px)}.five .sub{color:#CFE6E2}
 .slots{display:flex;gap:12px;flex-wrap:wrap}
 .slots span{width:76px;height:76px;border-radius:38px;overflow:hidden;display:block;border:3px solid rgba(255,255,255,.85)}
 .slots span.free{border:2px dashed rgba(255,255,255,.45)}
 .slots svg{width:100%;height:100%;display:block}
-.slots small{display:block;width:100%;font-size:14px;color:#E3D6EA;margin-top:8px}
+.slots small{display:block;width:100%;font-size:14px;color:#CFE6E2;margin-top:8px}
 .kundli{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:64px;align-items:center}
-.kcard{background:linear-gradient(160deg,#FFF6E6,#FFE3B0);border-radius:30px;padding:34px;display:grid;grid-template-columns:clamp(96px,28%,150px) minmax(0,1fr);gap:28px;align-items:center}
+.kcard{background:linear-gradient(160deg,#FFF8E3,#FFE7A8);border-radius:30px;padding:34px;display:grid;grid-template-columns:clamp(96px,28%,150px) minmax(0,1fr);gap:28px;align-items:center}
 .kcard>svg{width:100%;height:auto}
-.kscore b{font-family:var(--display);font-weight:800;letter-spacing:-.04em;font-size:68px;line-height:1;display:block;color:#5C3A00}
+.kscore b{font-family:var(--display);font-weight:800;letter-spacing:-.04em;font-size:68px;line-height:1;display:block;color:#5C4000}
 .kscore span{font-size:14px;color:#7A5410}
-.kparts{margin-top:16px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 18px;font-size:13px;color:#5C3A00}
+.kparts{margin-top:16px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 18px;font-size:13px;color:#5C4000}
 .kparts div{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid rgba(122,84,16,.18);padding:6px 0}
 .kparts span{color:#8A6420}
 .safety{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;margin-top:56px}
 .sf{background:#fff;border-radius:24px;padding:28px;border:1px solid var(--hair)}
-.sf .i{width:46px;height:46px;border-radius:23px;background:#FFE3E8;color:var(--primary);display:flex;align-items:center;justify-content:center}
+.sf .i{width:46px;height:46px;border-radius:23px;background:#FFE5DE;color:var(--primary);display:flex;align-items:center;justify-content:center}
 .sf h3{font-family:var(--sans);font-size:17px;font-weight:700;margin:18px 0 8px;letter-spacing:0}
 .sf p{margin:0;color:var(--muted);font-size:15px;line-height:1.6}
 .cities{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;margin-top:56px}
-.city{border-radius:30px;overflow:hidden;color:#fff;position:relative;min-height:320px;padding:34px;display:flex;flex-direction:column;justify-content:flex-start;background:linear-gradient(180deg,#FF9A6B 0%,#F0466E 55%,#7B3FA0 100%)}
-.city.delhi{background:linear-gradient(180deg,#FFB86B 0%,#E8476A 55%,#5A2A6B 100%)}
+.city{border-radius:30px;overflow:hidden;color:#fff;position:relative;min-height:320px;padding:34px;display:flex;flex-direction:column;justify-content:flex-start;background:linear-gradient(180deg,#0B4A5C 0%,#12808A 48%,#FF8A70 100%)}
+.city.delhi{background:linear-gradient(180deg,#08304A 0%,#0F6470 48%,#FFC94D 100%)}
 .city svg{position:absolute;left:0;right:0;bottom:0;width:100%;height:auto}
 .city h3{font-size:44px;margin:12px 0 0;color:#fff;position:relative}.city p{margin:6px 0 0;color:rgba(255,255,255,.9);font-size:15px;position:relative}
 .live{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:700;background:rgba(255,255,255,.22);padding:6px 11px;border-radius:999px;width:max-content;position:relative}
@@ -157,9 +151,22 @@ details p{margin:12px 0 0;color:var(--muted);line-height:1.65;max-width:68ch}
 footer{padding:36px 0;font-size:14px;color:var(--muted)}
 footer .wrap{display:flex;gap:24px;flex-wrap:wrap;align-items:center}
 footer a{text-decoration:none}footer a:hover{color:var(--primary)}
-.helpbtn{position:fixed;right:22px;bottom:22px;z-index:30;display:flex;align-items:center;gap:10px;min-height:50px;padding:0 20px 0 8px;border-radius:25px;border:none;background:#fff;color:var(--ink);font-weight:700;cursor:pointer;box-shadow:0 18px 40px -14px rgba(40,10,40,.45);font-family:var(--sans)}
-.helpbtn i{width:34px;height:34px;border-radius:17px;background:var(--dusk);display:flex;align-items:center;justify-content:center;gap:3px}
-.helpbtn i b{display:block;width:3px;height:12px;border-radius:2px;background:#fff}
+.helpbtn{position:fixed;right:22px;bottom:22px;z-index:30;display:flex;align-items:center;gap:10px;min-height:50px;padding:0 20px 0 8px;border-radius:25px;border:none;background:#fff;color:var(--ink);font-weight:700;cursor:pointer;box-shadow:0 18px 40px -14px rgba(4,30,44,.45);font-family:var(--sans)}
+.helpbtn i{width:34px;height:34px;border-radius:17px;background:var(--coral);display:flex;align-items:center;justify-content:center;gap:3px}
+.helpbtn i b{display:block;width:3px;height:12px;border-radius:2px;background:var(--coral-ink)}
+/* stickers and avatars */
+.stack .stk{position:absolute;z-index:6;font-size:15px}
+.hs1{right:-5%;top:14px;--r:6deg}
+.hs2{left:-6%;top:268px;--r:-7deg;padding:6px 14px 6px 6px}
+.hs2 .av2 span{width:30px;height:30px;border-width:2px}
+.hs3{left:2%;top:-14px;--r:-6deg}
+.hpeek{position:absolute;z-index:5;left:-9%;bottom:-8px;width:190px;height:203px}
+.cstk{position:absolute;right:26px;top:30px;--r:6deg;font-size:15px}
+.cat.forever .cstk{--r:-5deg}
+.crew{display:flex;justify-content:center;align-items:flex-end;gap:4px;margin:0 auto 34px;flex-wrap:wrap}
+.crew span{width:150px;height:160px;display:block}
+.crew span:nth-child(even){width:136px;height:145px}
+.sf:nth-child(3n+2) .i{background:#DDF8EE}.sf:nth-child(3n) .i{background:#FFF3C4}
 @media (max-width:1060px){.kcard{grid-template-columns:1fr}.kcard>svg{width:110px}}
 @media (max-width:960px){
   .hero .wrap,.kundli,.five,.cats,.duo,.cities{grid-template-columns:minmax(0,1fr)}
@@ -167,6 +174,7 @@ footer a{text-decoration:none}footer a:hover{color:var(--primary)}
   header.site nav{display:none}header.site .cta{margin-left:auto}
   .hero{padding:120px 0 80px}
   .stack{height:560px;max-width:520px;margin:0 auto;width:100%}
+  .hpeek{display:none}
 }
 @media (max-width:600px){
   .wrap{padding:0 20px}
@@ -174,7 +182,8 @@ footer a{text-decoration:none}footer a:hover{color:var(--primary)}
   section.s{padding:76px 0}
   .steps,.safety{grid-template-columns:minmax(0,1fr)}
   .stack{height:540px}.pcard{left:50%;width:230px}.pcard.front{width:270px}.pcard.back1{transform:translateX(-96%) rotate(-9deg) scale(.82)}.pcard.back2{transform:translateX(-4%) rotate(9deg) scale(.82)}
-  .bubble.destiny{right:-2%;top:-14px}.bubble.mutual{left:-2%;top:200px}
+  .hs1{right:-2%;top:-18px}.hs2{left:-2%;top:210px}.hs3{display:none}
+  .crew span{width:104px;height:111px}.crew span:nth-child(even){width:96px;height:102px}.cstk{right:18px;top:22px;font-size:13px}
   .cat,.duo>div{padding:28px}.five{padding:34px}.cat h3{font-size:40px}
   .helpbtn span{display:none}.helpbtn{padding:0 8px}
   .faces span{width:64px;height:64px}
@@ -206,7 +215,7 @@ footer a{text-decoration:none}footer a:hover{color:var(--primary)}
 
 <main>
 <section class="hero">
-  <svg class="skyline" viewBox="0 0 1440 160" preserveAspectRatio="none" aria-hidden="true"><path fill="#3B1647" d="M0 160V118h60V92h40v26h50V70h30V40h12v30h28v48h70V96h36l20-30 20 30h40v22h60V60h16V30h8v30h16v58h80V84h50v34h44V100c0-30 20-44 40-44s40 14 40 44v18h60V78h34V58h20v20h34v40h70V90h46v28h60V66h26l14-26 14 26h26v52h70V100h44v18h60V76h40v42h56V160z"/></svg>
+  <svg class="skyline" viewBox="0 0 1440 160" preserveAspectRatio="none" aria-hidden="true"><path fill="#062A3A" d="M0 160V118h60V92h40v26h50V70h30V40h12v30h28v48h70V96h36l20-30 20 30h40v22h60V60h16V30h8v30h16v58h80V84h50v34h44V100c0-30 20-44 40-44s40 14 40 44v18h60V78h34V58h20v20h34v40h70V90h46v28h60V66h26l14-26 14 26h26v52h70V100h44v18h60V76h40v42h56V160z"/></svg>
   <div class="wrap">
     <div>
       <h1>Hit pause on swiping.</h1>
@@ -219,18 +228,20 @@ footer a{text-decoration:none}footer a:hover{color:var(--primary)}
       </div>
     </div>
     <div class="stack" aria-label="Example profiles">
-      <div class="pcard back1" aria-hidden="true"><div class="art" data-face="kabir"></div><div class="nm"><b>Kabir, 30</b><span><svg class="ic"><use href="#i-check"/></svg>Verified, Delhi NCR</span></div></div>
-      <div class="pcard back2" aria-hidden="true"><div class="art" data-face="meera"></div><div class="nm"><b>Meera, 28</b><span><svg class="ic"><use href="#i-check"/></svg>Verified, Bangalore</span></div></div>
+      <div class="pcard back1" aria-hidden="true"><div class="art" data-pav="kabir" data-frame="portrait"></div><div class="nm"><b>Kabir, 30</b><span><svg class="ic"><use href="#i-check"/></svg>Verified, Delhi NCR</span></div></div>
+      <div class="pcard back2" aria-hidden="true"><div class="art" data-pav="meera" data-frame="portrait"></div><div class="nm"><b>Meera, 28</b><span><svg class="ic"><use href="#i-check"/></svg>Verified, Bangalore</span></div></div>
       <div class="pcard front" id="demo">
-        <div class="art" data-face="ananya" data-label="Illustrated portrait of Ananya"><span class="mlab"><svg class="ic"><use href="#i-mask"/></svg>Masked</span><div class="nm"><b>Ananya, 27</b><span><svg class="ic"><use href="#i-check"/></svg>Verified, Bangalore</span></div></div>
+        <div class="art" data-pav="ananya" data-frame="portrait" data-label="Illustrated portrait of Ananya"><span class="mlab"><svg class="ic"><use href="#i-mask"/></svg>Masked</span><div class="nm"><b>Ananya, 27</b><span><svg class="ic"><use href="#i-check"/></svg>Verified, Bangalore</span></div></div>
         <div class="drows" aria-live="polite">
           <div class="drow"><b>You</b><span class="st" id="dYou">Masked</span><button class="dbtn" id="dBtn"><svg class="ic"><use href="#i-mask"/></svg>Unmask</button></div>
           <div class="drow"><b>Ananya</b><span class="st" id="dThem">Masked</span></div>
         </div>
         <p class="dcap" id="dCap">Try it. Photos open only when you both tap Unmask.</p>
       </div>
-      <div class="bubble destiny" aria-hidden="true"><span class="star"><svg class="ic" style="width:16px;height:16px"><use href="#i-star"/></svg></span><div><b>Tonight’s Destiny</b><small>Arrives at 9 pm</small></div></div>
-      <div class="bubble mutual" aria-hidden="true"><span class="av2"><span data-face="zoya"></span><span data-face="rohan"></span></span><div><b>It’s mutual.</b><small>Zoya and Rohan</small></div></div>
+      <span class="stk sun hs1" aria-hidden="true"><svg class="ic"><use href="#i-star"/></svg>Destiny drops at 9 pm</span>
+      <span class="stk mint hs2" aria-hidden="true"><span class="av2"><span data-pav="zoya" data-frame="circle"></span><span data-pav="rohan" data-frame="circle"></span></span>It’s mutual!</span>
+      <span class="stk hs3" aria-hidden="true">Chai pe chalein?</span>
+      <span class="hpeek" aria-hidden="true" data-pav="arjun"></span>
     </div>
   </div>
 </section>
@@ -239,9 +250,9 @@ footer a{text-decoration:none}footer a:hover{color:var(--primary)}
   <h2 class="big">Know what you’re here for.</h2>
   <p class="sub">You only meet people who want the same thing you do. If that changes, you can switch once a week.</p>
   <div class="cats">
-    <div class="cat steady"><div class="couple" aria-hidden="true"><span data-face="zoya"></span><span data-face="arjun"></span></div><h3>Steady</h3><p>Dating that’s going somewhere. Get to know someone properly before deciding anything.</p>
+    <div class="cat steady"><span class="stk sun cstk" aria-hidden="true">No ghosting</span><div class="couple" aria-hidden="true"><span data-pav="zoya" data-frame="circle"></span><span data-pav="arjun" data-frame="circle"></span></div><h3>Steady</h3><p>Dating that’s going somewhere. Get to know someone properly before deciding anything.</p>
       <ul><li>Picks on shared interests</li><li>Optional zodiac sign</li><li>Masked or not, your call</li></ul></div>
-    <div class="cat forever"><div class="couple" aria-hidden="true"><span data-face="meera"></span><span data-face="rohan"></span></div><h3>Forever</h3><p>Marriage-minded. For people ready to talk about timelines, families and the life after.</p>
+    <div class="cat forever"><span class="stk mint cstk" aria-hidden="true">Shaadi-minded</span><div class="couple" aria-hidden="true"><span data-pav="meera" data-frame="circle"></span><span data-pav="rohan" data-frame="circle"></span></div><h3>Forever</h3><p>Marriage-minded. For people ready to talk about timelines, families and the life after.</p>
       <ul><li>Optional kundli score</li><li>Religion and food preferences</li><li>Same-religion filter</li></ul></div>
   </div>
   <div class="adnote"><svg class="ic"><use href="#i-moon"/></svg><span>A third category, After Dark, is inside the app for casual dating between verified adults, under the same rules.</span></div>
@@ -252,7 +263,7 @@ footer a{text-decoration:none}footer a:hover{color:var(--primary)}
   <p class="sub">Both are optional. Turn them on or off whenever you like.</p>
   <div class="duo">
     <div><h3 style="margin-top:0">Masked</h3><p>Your photos stay hidden while you talk. When you’re both ready, you each tap Unmask, and only then do photos open. Sharing numbers works the same way.</p>
-      <div class="ba" aria-hidden="true"><span class="blur" data-face="arjun"></span><div class="ar"><svg class="ic" style="width:22px;height:22px"><use href="#i-heart"/></svg>You both<br>tap Unmask</div><span data-face="arjun"></span></div></div>
+      <div class="ba" aria-hidden="true"><span class="blur" data-pav="arjun" data-frame="portrait"></span><div class="ar"><svg class="ic" style="width:22px;height:22px"><use href="#i-heart"/></svg>You both<br>tap Unmask</div><span data-pav="arjun" data-frame="portrait"></span></div></div>
     <div><h3 style="margin-top:0">Destiny</h3><p>Answer 12 short questions for your category. Your picks show a match score, and each night at 9 pm you receive one considered match with the reasons you fit.</p>
       <ul class="why"><li><svg class="ic"><use href="#i-star"/></svg>Kids: you both said “Want them”</li><li><svg class="ic"><use href="#i-star"/></svg>After an argument: you both “Talk it out right away”</li><li><svg class="ic"><use href="#i-star"/></svg>Marriage timeline: you both said “In 1–2 years”</li></ul></div>
   </div>
@@ -272,7 +283,7 @@ footer a{text-decoration:none}footer a:hover{color:var(--primary)}
   <div class="five">
     <div><h2 class="big">Five conversations. For everyone.</h2>
       <p class="sub">Men and women alike keep up to five chats open at a time. Nobody is buried in messages and nobody is left on read. Close a chat politely and a place opens for someone new.</p></div>
-    <div class="slots" role="img" aria-label="Three of five chats in use"><span data-face="zoya"></span><span data-face="kabir"></span><span data-face="meera"></span><span class="free"></span><span class="free"></span><small>Three chats open, two places free</small></div>
+    <div class="slots" role="img" aria-label="Three of five chats in use"><span data-pav="zoya" data-frame="circle"></span><span data-pav="kabir" data-frame="circle"></span><span data-pav="meera" data-frame="circle"></span><span class="free"></span><span class="free"></span><small>Three chats open, two places free</small></div>
   </div>
 </div></section>
 
@@ -302,9 +313,9 @@ footer a{text-decoration:none}footer a:hover{color:var(--primary)}
   <h2 class="big">Live in Bangalore and Delhi NCR.</h2>
   <div class="cities">
     <div class="city"><span class="live">Live now</span><h3>Bangalore</h3><p>All of Bengaluru.</p>
-      <svg viewBox="0 0 560 150" aria-hidden="true"><path fill="#3B1647" d="M0 150V110h40V84h50v26h40V96h30V72h220v24h30v14h40V80h40v30h70v40z"/><path fill="#2B0F38" d="M180 150V78h200v72z"/><path fill="#3B1647" d="M250 78V58h60v20zM258 58c0-24 10-38 22-38s22 14 22 38zM276 20h8V8h-8z"/><path fill="#3B1647" d="M190 78c0-14 8-24 18-24s18 10 18 24zM334 78c0-14 8-24 18-24s18 10 18 24z"/><g fill="#FFC27A" opacity=".8"><rect x="200" y="100" width="8" height="14"/><rect x="226" y="100" width="8" height="14"/><rect x="326" y="100" width="8" height="14"/><rect x="352" y="100" width="8" height="14"/></g></svg></div>
+      <svg viewBox="0 0 560 150" aria-hidden="true"><path fill="#062A3A" d="M0 150V110h40V84h50v26h40V96h30V72h220v24h30v14h40V80h40v30h70v40z"/><path fill="#062A3A" d="M180 150V78h200v72z"/><path fill="#062A3A" d="M250 78V58h60v20zM258 58c0-24 10-38 22-38s22 14 22 38zM276 20h8V8h-8z"/><path fill="#062A3A" d="M190 78c0-14 8-24 18-24s18 10 18 24zM334 78c0-14 8-24 18-24s18 10 18 24z"/><g fill="#FFC27A" opacity=".8"><rect x="200" y="100" width="8" height="14"/><rect x="226" y="100" width="8" height="14"/><rect x="326" y="100" width="8" height="14"/><rect x="352" y="100" width="8" height="14"/></g></svg></div>
     <div class="city delhi"><span class="live">Live now</span><h3>Delhi NCR</h3><p>Delhi, Gurugram, Noida, Ghaziabad and Faridabad.</p>
-      <svg viewBox="0 0 560 150" aria-hidden="true"><path fill="#3B1647" d="M0 150V112h60V90h60v22h40v38zM440 150V100h50v12h70v38z"/><path fill="#2B0F38" d="M180 150V40h140v110h-40v-58a30 30 0 0 0-60 0v58zM170 30h160v12H170zM206 18h88v12h-88z"/><path fill="#2B0F38" d="M372 150l10-130h16l10 130zM378 70h24v6h-24zM382 40h16v5h-16zM386 20V6h8v14z"/></svg></div>
+      <svg viewBox="0 0 560 150" aria-hidden="true"><path fill="#062A3A" d="M0 150V112h60V90h60v22h40v38zM440 150V100h50v12h70v38z"/><path fill="#062A3A" d="M180 150V40h140v110h-40v-58a30 30 0 0 0-60 0v58zM170 30h160v12H170zM206 18h88v12h-88z"/><path fill="#062A3A" d="M372 150l10-130h16l10 130zM378 70h24v6h-24zM382 40h16v5h-16zM386 20V6h8v14z"/></svg></div>
   </div>
   <form class="wl" id="wl"><label class="sr" for="wlp">Mobile number</label><input id="wlp" type="tel" inputmode="numeric" placeholder="Your mobile number" required><label class="sr" for="wlc">City</label><input id="wlc" placeholder="Your city, e.g. Mumbai or Pune"><button class="cta rose">Notify me when PAUSE opens</button></form>
   <p class="hint" id="wlm" role="status" style="margin-top:10px"></p>
@@ -322,7 +333,7 @@ footer a{text-decoration:none}footer a:hover{color:var(--primary)}
 </div></section>
 
 <section class="final"><div class="wrap">
-  <div class="faces" aria-hidden="true"><span data-face="meera"></span><span data-face="kabir"></span><span data-face="ananya-open"></span><span data-face="arjun"></span><span data-face="zoya"></span></div>
+  <div class="crew" aria-hidden="true"><span data-pav="meera"></span><span data-pav="kabir"></span><span data-pav="ananya"></span><span data-pav="arjun"></span><span data-pav="zoya"></span></div>
   <h2>Ready when you are.</h2>
   <p>Someone worth slowing down for is already here.</p>
   <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center"><a class="cta cream" href="/app#signup">Join PAUSE</a><button class="cta ghost" data-ask type="button">Ask a question</button></div>
@@ -333,54 +344,11 @@ footer a{text-decoration:none}footer a:hover{color:var(--primary)}
   <span style="margin-left:auto;display:flex;gap:22px;flex-wrap:wrap"><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/grievance">Grievance officer</a><a href="/app">Open the app</a></span></div></footer>
 
 <button class="helpbtn" data-ask type="button" aria-label="Help"><i aria-hidden="true"><b></b><b></b></i><span>Help</span></button>
+<script src="/avatars.js"></script>
 <script src="/ask.js"></script>
 <script>
-// Illustrated portraits: people, not stock photos. Clearly illustrations, never presented as members.
-const FACES = {
-  ananya: { bg: ['#FFB3C1', '#F0466E'], skin: '#C99C7E', sd: '#B0846A', hair: '#24171B', style: 'long', outfit: '#FFF4EC', accent: '#C92E5C', bindi: 1, hoops: 1 },
-  kabir: { bg: ['#FFE0A3', '#F4A63A'], skin: '#B98463', sd: '#9E6C4F', hair: '#1F1416', style: 'short', beard: 1, glasses: 1, outfit: '#2B1A3D', accent: '#F4A63A' },
-  meera: { bg: ['#FFE1D1', '#FF8A6B'], skin: '#D9A98A', sd: '#C08E70', hair: '#24171B', style: 'bun', saree: 1, nosepin: 1, studs: 1, outfit: '#7B3FA0', accent: '#F4A63A' },
-  arjun: { bg: ['#D9B8F0', '#7B3FA0'], skin: '#A87455', sd: '#8E5E42', hair: '#20141A', style: 'curly', kurta: 1, outfit: '#F4A63A', accent: '#C92E5C' },
-  zoya: { bg: ['#F3E1FF', '#B88AE6'], skin: '#E2B496', sd: '#C9987A', hair: '#3A2420', style: 'side', hoops: 1, outfit: '#C92E5C', accent: '#FFF4EC' },
-  rohan: { bg: ['#FFD3C2', '#FF7A59'], skin: '#C48E6C', sd: '#A87656', hair: '#1F1416', style: 'short', beard: 1, kurta: 1, outfit: '#FFF4EC', accent: '#5A2A6B' }
-};
-FACES['ananya-open'] = FACES.ananya;
-let fid = 0;
-function face(o) {
-  const id = 'f' + (fid++), h = o.hair;
-  const hairs = {
-    long: [`<path d="M92 160c-14 82-6 152 22 192h72c28-40 36-110 22-192z" fill="${h}"/>`, `<path d="M96 172c-10-76 30-114 54-114s70 30 58 114c-10-44-30-72-58-72s-46 28-54 72z" fill="${h}"/>`],
-    bun: ['', `<circle cx="150" cy="70" r="26" fill="${h}"/><path d="M98 168c-6-68 26-102 52-102s62 26 54 102c-8-42-26-64-54-64s-46 22-52 64z" fill="${h}"/>`],
-    short: ['', `<path d="M98 160c-2-58 28-88 54-88s58 24 52 88c-6-28-22-46-52-46s-48 18-54 46z" fill="${h}"/>`],
-    curly: ['', `<g fill="${h}">${[[106, 136, 18], [116, 110, 20], [138, 94, 22], [162, 92, 22], [186, 104, 20], [198, 128, 17], [150, 112, 28], [126, 124, 16], [176, 122, 16]].map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}"/>`).join('')}</g>`],
-    side: [`<path d="M94 162c-10 62 0 112 16 142h44l-12-150z" fill="${h}"/>`, `<path d="M96 174c-8-78 34-112 62-110 34 2 58 34 46 102-18-32-48-52-86-48-10 14-16 30-22 56z" fill="${h}"/>`]
-  }[o.style];
-  const smileColor = o.beard ? '#E9C7B5' : '#8A3A48';
-  return `<svg viewBox="0 0 300 375" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${o.bg[0]}"/><stop offset="1" stop-color="${o.bg[1]}"/></linearGradient></defs>
-    <rect width="300" height="375" fill="url(#${id})"/><circle cx="232" cy="84" r="54" fill="#fff" opacity=".22"/>
-    ${hairs[0]}
-    <path d="M22 375c8-72 62-110 128-110s120 38 128 110z" fill="${o.outfit}"/>
-    ${o.saree ? `<path d="M40 318c40-26 70-40 96-46l110 103h-70z" fill="${o.accent}" opacity=".95"/><path d="M40 318c40-26 70-40 96-46" stroke="#fff" stroke-width="3" fill="none" opacity=".7"/>` : ''}
-    ${o.kurta ? `<path d="M150 266v66" stroke="${o.accent}" stroke-width="4"/><circle cx="150" cy="290" r="3.5" fill="${o.accent}"/><circle cx="150" cy="310" r="3.5" fill="${o.accent}"/>` : ''}
-    <path d="M128 220h44v42c0 14-44 14-44 0z" fill="${o.sd}"/>
-    <ellipse cx="98" cy="176" rx="8" ry="13" fill="${o.skin}"/><ellipse cx="202" cy="176" rx="8" ry="13" fill="${o.skin}"/>
-    <ellipse cx="150" cy="170" rx="52" ry="64" fill="${o.skin}"/>
-    ${o.beard ? `<path d="M100 186c4 44 24 62 50 62s46-18 50-62c-8 24-26 32-50 32s-42-8-50-32z" fill="${h}" opacity=".92"/><path d="M132 203q18-9 36 0q-18 7-36 0z" fill="${h}"/>` : ''}
-    ${hairs[1]}
-    <path d="M118 158q12-7 24 0M158 158q12-7 24 0" stroke="${h}" stroke-width="4" fill="none" stroke-linecap="round"/>
-    <ellipse cx="130" cy="175" rx="5" ry="6" fill="#2A1A1E"/><ellipse cx="170" cy="175" rx="5" ry="6" fill="#2A1A1E"/>
-    <circle cx="132" cy="173" r="1.6" fill="#fff"/><circle cx="172" cy="173" r="1.6" fill="#fff"/>
-    <path d="M150 182q-6 14 2 18" stroke="${o.sd}" stroke-width="3" fill="none" stroke-linecap="round"/>
-    <circle cx="120" cy="198" r="9" fill="#F08AA3" opacity=".3"/><circle cx="180" cy="198" r="9" fill="#F08AA3" opacity=".3"/>
-    <path d="M134 210q16 12 32 0" stroke="${smileColor}" stroke-width="4" fill="none" stroke-linecap="round"/>
-    ${o.glasses ? '<g fill="none" stroke="#2A1A1E" stroke-width="3"><rect x="112" y="163" width="34" height="24" rx="10"/><rect x="154" y="163" width="34" height="24" rx="10"/><path d="M146 173h8"/></g>' : ''}
-    ${o.bindi ? '<circle cx="150" cy="148" r="3.6" fill="#C92E5C"/>' : ''}
-    ${o.nosepin ? '<circle cx="158" cy="197" r="2.6" fill="#F4A63A"/>' : ''}
-    ${o.hoops ? '<circle cx="98" cy="198" r="7" fill="none" stroke="#F4A63A" stroke-width="3"/><circle cx="202" cy="198" r="7" fill="none" stroke="#F4A63A" stroke-width="3"/>' : ''}
-    ${o.studs ? '<circle cx="98" cy="190" r="3.5" fill="#F4A63A"/><circle cx="202" cy="190" r="3.5" fill="#F4A63A"/>' : ''}
-  </svg>`;
-}
-document.querySelectorAll('[data-face]').forEach((el) => { const o = FACES[el.dataset.face]; if (o) el.insertAdjacentHTML('afterbegin', face(o)); });
+// Illustrated avatars (see /avatars.js): clearly cartoons, never presented as members.
+PauseAvatar.mount();
 (() => {
   const demo = document.getElementById('demo'), btn = document.getElementById('dBtn');
   const you = document.getElementById('dYou'), them = document.getElementById('dThem'), cap = document.getElementById('dCap');

@@ -4,29 +4,29 @@
   if (window.AskPause) return;
   const CSS = `
   .ask-bg{position:fixed;inset:0;background:rgba(20,10,28,.5);z-index:70}
-  .ask{position:fixed;left:0;right:0;bottom:0;z-index:71;max-width:480px;margin:0 auto;background:#fff;color:#24152F;border-radius:22px 22px 0 0;display:flex;flex-direction:column;max-height:86vh;font-family:'Plus Jakarta Sans',system-ui,sans-serif;animation:askup .3s cubic-bezier(.2,.8,.2,1) both;box-shadow:0 -24px 60px -24px rgba(29,18,41,.45)}
+  .ask{position:fixed;left:0;right:0;bottom:0;z-index:71;max-width:480px;margin:0 auto;background:#fff;color:#08263A;border-radius:22px 22px 0 0;display:flex;flex-direction:column;max-height:86vh;font-family:'Plus Jakarta Sans',system-ui,sans-serif;animation:askup .3s cubic-bezier(.2,.8,.2,1) both;box-shadow:0 -24px 60px -24px rgba(6,36,51,.45)}
   @keyframes askup{from{transform:translateY(100%)}}
   @media (min-width:760px){.ask{left:auto;right:24px;bottom:24px;width:400px;border-radius:20px;max-height:640px}}
-  .ask-h{display:flex;align-items:center;gap:12px;padding:18px 18px 16px;border-bottom:1px solid #EEE6EB}
-  .ask-av{width:38px;height:38px;border-radius:19px;background:linear-gradient(135deg,#FF8A5B,#F0466E 50%,#7B3FA0);display:flex;align-items:center;justify-content:center;gap:3px;flex:none}
-  .ask-av i{display:block;width:3px;height:13px;border-radius:2px;background:#FFF4EC}
-  .ask-h b{font-family:'Bricolage Grotesque',system-ui,sans-serif;font-weight:800;letter-spacing:-.03em;font-size:21px;color:#3D1450}
-  .ask-h small{display:block;color:#6E6276;font-size:12px;margin-top:2px}
-  .ask-x{margin-left:auto;width:38px;height:38px;border:1px solid #EEE6EB;background:#fff;border-radius:19px;cursor:pointer;color:#24152F;display:flex;align-items:center;justify-content:center}
+  .ask-h{display:flex;align-items:center;gap:12px;padding:18px 18px 16px;border-bottom:1px solid #DDEAE7}
+  .ask-av{width:38px;height:38px;border-radius:19px;background:#FF6B57;display:flex;align-items:center;justify-content:center;gap:3px;flex:none}
+  .ask-av i{display:block;width:3px;height:13px;border-radius:2px;background:#08263A}
+  .ask-h b{font-family:'Bricolage Grotesque',system-ui,sans-serif;font-weight:800;letter-spacing:-.03em;font-size:21px;color:#0B3F52}
+  .ask-h small{display:block;color:#5B7279;font-size:12px;margin-top:2px}
+  .ask-x{margin-left:auto;width:38px;height:38px;border:1px solid #DDEAE7;background:#fff;border-radius:19px;cursor:pointer;color:#08263A;display:flex;align-items:center;justify-content:center}
   .ask-b{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:8px;min-height:220px}
   .ask-m{max-width:88%;padding:10px 14px;font-size:14px;line-height:1.5;white-space:pre-wrap}
-  .ask-m.bot{align-self:flex-start;background:#F6EEF2;border-radius:16px 16px 16px 6px}
-  .ask-m.you{align-self:flex-end;background:#C92E5C;color:#fff;border-radius:16px 16px 6px 16px}
+  .ask-m.bot{align-self:flex-start;background:#E8F3F1;border-radius:16px 16px 16px 6px}
+  .ask-m.you{align-self:flex-end;background:#0B4A5C;color:#fff;border-radius:16px 16px 6px 16px}
   .ask-c{display:flex;flex-wrap:wrap;gap:6px}
-  .ask-c button{min-height:36px;padding:0 12px;border-radius:999px;border:1px solid #DDD0D8;background:#fff;font-size:13px;cursor:pointer;color:#24152F;font-family:inherit}
-  .ask-c button:hover{border-color:#C92E5C}
-  .ask-f{display:flex;gap:8px;padding:12px 14px calc(12px + env(safe-area-inset-bottom));border-top:1px solid #EEE6EB}
-  .ask-f input{flex:1;min-width:0;min-height:46px;padding:0 14px;border-radius:23px;border:1px solid #DDD0D8;font-size:16px;font-family:inherit}
-  .ask-f button,.ask-t button{min-height:46px;padding:0 18px;border-radius:23px;border:none;background:#C92E5C;color:#fff;font-weight:600;cursor:pointer;font-family:inherit}
-  .ask-t{display:flex;flex-direction:column;gap:8px;background:#FBF7F8;border:1px solid #EEE6EB;border-radius:14px;padding:12px}
-  .ask-t textarea,.ask-t input{min-height:44px;padding:10px 12px;border-radius:10px;border:1px solid #DDD0D8;font:inherit;font-size:15px}
+  .ask-c button{min-height:36px;padding:0 12px;border-radius:999px;border:1px solid #C8DBD7;background:#fff;font-size:13px;cursor:pointer;color:#08263A;font-family:inherit}
+  .ask-c button:hover{border-color:#0B4A5C}
+  .ask-f{display:flex;gap:8px;padding:12px 14px calc(12px + env(safe-area-inset-bottom));border-top:1px solid #DDEAE7}
+  .ask-f input{flex:1;min-width:0;min-height:46px;padding:0 14px;border-radius:23px;border:1px solid #C8DBD7;font-size:16px;font-family:inherit}
+  .ask-f button,.ask-t button{min-height:46px;padding:0 18px;border-radius:23px;border:none;background:#0B4A5C;color:#fff;font-weight:600;cursor:pointer;font-family:inherit}
+  .ask-t{display:flex;flex-direction:column;gap:8px;background:#F2F8F7;border:1px solid #DDEAE7;border-radius:14px;padding:12px}
+  .ask-t textarea,.ask-t input{min-height:44px;padding:10px 12px;border-radius:10px;border:1px solid #C8DBD7;font:inherit;font-size:15px}
   .ask-t button{border-radius:12px}
-  .ask :focus-visible{outline:2px solid #F4A63A;outline-offset:2px}`;
+  .ask :focus-visible{outline:2px solid #FFC94D;outline-offset:2px}`;
   const DEFAULT_CHIPS = ['How does Masked work?', 'What is Destiny?', 'Why only five chats?', 'Is my verification done?', 'Kundli matching', 'Safety and emergencies', 'Report someone', 'Talk to a person'];
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   async function post(path, body) {
