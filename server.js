@@ -1,5 +1,5 @@
 // PAUSE — verified, slow dating for India (MVP)
-// Categories: Steady 💞 · Forever 💍 · After Dark 🌙. Switches in every category: 🎭 Masked · 🔮 Destiny. Focus 5 for everyone.
+// Categories: Steady, Forever, After Dark. Switches in every category: Masked and Destiny. Focus 5 for everyone.
 const express = require('express');
 const path = require('path');
 const crypto = require('crypto');
@@ -28,7 +28,7 @@ const pool = new Pool({
 const q = (text, params) => pool.query(text, params);
 
 const MODES = ['steady', 'forever', 'afterdark'];
-const MODE_NAMES = { steady: 'Steady 💞', forever: 'Forever 💍', afterdark: 'After Dark 🌙' };
+const MODE_NAMES = { steady: 'Steady', forever: 'Forever', afterdark: 'After Dark' };
 const LIVE_CITIES = (process.env.LIVE_CITIES || 'Bangalore,Delhi NCR').split(',').map((c) => c.trim()).filter(Boolean);
 function normCity(c) {
   const v = String(c || '').trim().toLowerCase().replace(/\s+/g, ' ');
@@ -131,7 +131,7 @@ function zodiacOf(dob) {
   const [, m, d] = String(dob).slice(0, 10).split('-').map(Number);
   const md = m * 100 + d;
   const z = ZODIAC.find((x) => md < x[2]);
-  return z ? { name: z[0], sign: z[1] } : null;
+  return z ? { name: z[0] } : null;
 }
 function istNow() {
   const t = new Date(Date.now() + 330 * 60000);
@@ -471,8 +471,8 @@ app.post('/api/like/:id', authW, verified, wrap(async (req, res) => {
       const { rows: m } = await q(`INSERT INTO matches(a_id,b_id,level) VALUES($1,$2,$3)
         ON CONFLICT (a_id,b_id) DO UPDATE SET closed=false RETURNING id`, [a, b, masked ? 0 : 1]);
       await q('INSERT INTO messages(match_id, body, system) VALUES($1,$2,true)', [m[0].id, masked
-        ? 'It’s mutual 🎭 You’re both masked. Talk, play a game, and tap Unmask when you’re ready — photos open only when you both do.'
-        : 'It’s mutual. Say hi 👋 Numbers stay private until you both tap Share numbers.']);
+        ? 'It’s mutual. You’re both masked: talk first, and photos open only when you both tap Unmask.'
+        : 'It’s mutual. Numbers stay private until you both choose to share them.']);
       return res.json({ matched: true, match_id: m[0].id, masked });
     }
   }
@@ -490,13 +490,13 @@ function scamFlag(body) {
   if (/(https?:\/\/|www\.)\S+/i.test(body)) return 'link';
   return null;
 }
-const TOT = [['Chai ☕', 'Coffee'], ['Mountains ⛰️', 'Beaches 🏖️'], ['Biryani', 'Pizza 🍕'], ['Early bird', 'Night owl 🦉'], ['Text', 'Call'],
-  ['Movie at home', 'Theatre 🍿'], ['Road trip 🚗', 'Flight ✈️'], ['Dogs 🐶', 'Cats 🐱'], ['Sweet', 'Spicy 🌶️'], ['Old songs', 'New songs'],
-  ['Plan everything', 'Go with the flow'], ['Sunrise', 'Sunset 🌅'], ['Books 📚', 'Podcasts 🎧'], ['Gym', 'Yoga'], ['Street food', 'Fine dining'],
-  ['Monsoon 🌧️', 'Winter ❄️'], ['Momos 🥟', 'Golgappe'], ['Window seat', 'Aisle seat'], ['Goa', 'Manali'], ['Big city', 'Small town'],
-  ['Saver', 'Spender'], ['Dance', 'Sing (badly)'], ['Ice cream 🍦', 'Kulfi'], ['Ludo', 'Cards 🃏'], ['Long chats', 'Short and sweet'],
-  ['Slow dance', 'Fast song'], ['Candlelight 🕯️', 'Neon lights'], ['Late-night drive', 'Late-night call'], ['Surprise me', 'Ask me first'], ['Paneer tikka', 'Dal makhani']];
-const LEVEL_DONE = ['', 'You both unmasked 🎭✨ Photos are open now.', 'Numbers shared 📞 Stay safe — meet in a public place first.'];
+const TOT = [['Chai', 'Coffee'], ['Mountains', 'Beaches'], ['Biryani', 'Pizza'], ['Early bird', 'Night owl'], ['Text', 'Call'],
+  ['Movie at home', 'Theatre'], ['Road trip', 'Flight'], ['Dogs', 'Cats'], ['Sweet', 'Spicy'], ['Old songs', 'New songs'],
+  ['Plan everything', 'Go with the flow'], ['Sunrise', 'Sunset'], ['Books', 'Podcasts'], ['Gym', 'Yoga'], ['Street food', 'Fine dining'],
+  ['Monsoon', 'Winter'], ['Momos', 'Golgappe'], ['Window seat', 'Aisle seat'], ['Goa', 'Manali'], ['Big city', 'Small town'],
+  ['Saver', 'Spender'], ['Dance', 'Sing (badly)'], ['Ice cream', 'Kulfi'], ['Ludo', 'Cards'], ['Long chats', 'Short and sweet'],
+  ['Slow dance', 'Fast song'], ['Candlelight', 'Neon lights'], ['Late-night drive', 'Late-night call'], ['Surprise me', 'Ask me first'], ['Paneer tikka', 'Dal makhani']];
+const LEVEL_DONE = ['', 'You both unmasked. Photos are open now.', 'Numbers shared. For a first meeting, choose a busy public place.'];
 
 async function loadMatch(req, res) {
   const { rows } = await q('SELECT * FROM matches WHERE id=$1 AND (a_id=$2 OR b_id=$2)', [req.params.id, req.user.id]);
@@ -527,7 +527,7 @@ function viewMeta(msg, meId) {
   return undefined;
 }
 app.get('/api/matches', authW, verified, wrap(async (req, res) => {
-  const { rows } = await q(`SELECT m.*, (SELECT CASE WHEN kind='text' THEN body ELSE '🎲 ' || body END FROM messages WHERE match_id=m.id ORDER BY id DESC LIMIT 1) AS last
+  const { rows } = await q(`SELECT m.*, (SELECT CASE WHEN kind='text' THEN body ELSE body END FROM messages WHERE match_id=m.id ORDER BY id DESC LIMIT 1) AS last
     FROM matches m WHERE (a_id=$1 OR b_id=$1) AND NOT closed
     AND NOT EXISTS (SELECT 1 FROM blocks b WHERE b.blocker=$1 AND (b.blocked=m.a_id OR b.blocked=m.b_id))
     ORDER BY id DESC`, [req.user.id]);
@@ -558,7 +558,7 @@ app.post('/api/matches/:id/reveal', authW, verified, wrap(async (req, res) => {
   const action = req.body.action; // request | approve | decline
   if (m.level >= 2) return err(res, 400, 'Everything is already shared');
   const next = m.level + 1;
-  const ask = next === 1 ? 'unmask 🎭' : 'share numbers 📞';
+  const ask = next === 1 ? 'unmask' : 'share numbers';
   if (action === 'request') {
     if (m.pending_by && m.pending_by !== req.user.id) return err(res, 400, 'They already asked — tap accept below.');
     await q('UPDATE matches SET pending_by=$2 WHERE id=$1', [m.id, req.user.id]);
@@ -586,7 +586,7 @@ app.post('/api/matches/:id/game', authW, verified, wrap(async (req, res) => {
     const st = (Array.isArray(req.body.statements) ? req.body.statements : []).map((s) => clean(s, 120));
     const lie = parseInt(req.body.lie, 10);
     if (st.length !== 3 || st.some((s) => !s) || !(lie >= 0 && lie <= 2)) return err(res, 400, 'Write 3 statements and mark the lie');
-    if (m.level < 2 && st.some((s) => CONTACT_RE.test(s))) return err(res, 400, 'No numbers or handles yet 🙂');
+    if (m.level < 2 && st.some((s) => CONTACT_RE.test(s))) return err(res, 400, 'Numbers and handles unlock when you both choose to share them.');
     await q("INSERT INTO messages(match_id, sender_id, body, kind, meta) VALUES($1,$2,$3,'ttl',$4)", [m.id, req.user.id, '2 truths, 1 lie', { by: req.user.id, st, lie, guess: null }]);
   } else {
     const { rows } = await q("SELECT meta->>'a' AS a FROM messages WHERE match_id=$1 AND kind='tot'", [m.id]);
@@ -610,7 +610,7 @@ app.post('/api/matches/:id/game/:mid', authW, verified, wrap(async (req, res) =>
     await q('UPDATE messages SET meta=$2 WHERE id=$1', [g.id, meta]);
     if (Object.keys(meta.ans).length >= 2) {
       const vals = Object.values(meta.ans);
-      await q('INSERT INTO messages(match_id, body, system) VALUES($1,$2,true)', [m.id, vals[0] === vals[1] ? `Same vibe ✨ You both picked ${meta[vals[0]]}.` : 'Opposites 😄 Defend your pick!']);
+      await q('INSERT INTO messages(match_id, body, system) VALUES($1,$2,true)', [m.id, vals[0] === vals[1] ? `You both picked ${meta[vals[0]]}.` : 'You picked differently.']);
     }
   } else {
     if (meta.by === req.user.id) return err(res, 400, 'Your partner guesses this one');
@@ -619,14 +619,14 @@ app.post('/api/matches/:id/game/:mid', authW, verified, wrap(async (req, res) =>
     if (!(guess >= 0 && guess <= 2)) return err(res, 400, 'Pick one');
     meta.guess = guess;
     await q('UPDATE messages SET meta=$2 WHERE id=$1', [g.id, meta]);
-    await q('INSERT INTO messages(match_id, body, system) VALUES($1,$2,true)', [m.id, guess === meta.lie ? `${req.user.name} spotted the lie 🕵️` : `${req.user.name} got fooled 😄`]);
+    await q('INSERT INTO messages(match_id, body, system) VALUES($1,$2,true)', [m.id, guess === meta.lie ? `${req.user.name} spotted the lie.` : `${req.user.name} was fooled.`]);
   }
   res.json({ ok: true });
 }));
 app.post('/api/matches/:id/close', authW, verified, wrap(async (req, res) => {
   const m = await loadMatch(req, res); if (!m) return;
   await q('UPDATE matches SET closed=true, pending_by=NULL WHERE id=$1', [m.id]);
-  await q('INSERT INTO messages(match_id, body, system) VALUES($1,$2,true)', [m.id, 'This chat was closed politely. Wishing you well 🙏']);
+  await q('INSERT INTO messages(match_id, body, system) VALUES($1,$2,true)', [m.id, 'This chat was closed. Wishing you well.']);
   res.json({ ok: true });
 }));
 

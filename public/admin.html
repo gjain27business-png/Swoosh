@@ -11,7 +11,9 @@
 main{max-width:1000px;margin:0 auto;padding:24px}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin:16px 0 28px}
 .stats div{padding:16px}
-.stats b{display:block;font-family:'Space Grotesk',sans-serif;font-size:28px}
+.stats b{display:block;font-family:var(--serif);font-weight:500;font-size:32px}
+.stats div{font-size:13px;color:var(--muted)}
+h1,h2{font-weight:500}
 .req{padding:16px;margin-bottom:16px;display:flex;flex-direction:column;gap:12px}
 .imgs{display:flex;gap:10px;overflow-x:auto}
 .imgs figure{margin:0;text-align:center;font-size:12px;color:var(--muted)}
@@ -20,7 +22,7 @@ main{max-width:1000px;margin:0 auto;padding:24px}
 </head>
 <body>
 <main>
-  <a class="logo" href="/"><img src="/icon.svg" width="28" height="28" alt="">PAUSE admin</a>
+  <a class="wordmark" href="/"><i aria-hidden="true"><b></b><b></b></i>PAUSE</a> <span class="hint" style="margin-left:8px">Admin</span>
   <form id="lf" style="display:flex;gap:10px;align-items:flex-end;margin-top:20px">
     <div class="field" style="margin:0;flex:1"><label for="pw">Admin password</label><input id="pw" type="password" autocomplete="current-password"></div>
     <button class="btn">Open</button>
@@ -46,7 +48,7 @@ async function load() {
   try {
     const [s, pending, reports, flagged, tickets] = await Promise.all([api('/stats'), api('/pending'), api('/reports'), api('/flagged'), api('/tickets')]);
     sessionStorage.setItem('pzpw', PW);
-    out.innerHTML = `<div class="stats">${Object.entries({ 'All users': s.users, Verified: s.verified, Women: s.women, Men: s.men, 'Steady 💞': s.steady, 'Forever 💍': s.forever, 'After Dark 🌙': s.afterdark, 'Destiny on': s.destiny_on, 'Open chats': s.active_chats, 'Scam flags': s.scam_flags, Waitlist: s.waitlist, 'Open reports': s.open_reports, 'Help tickets': s.open_tickets }).map(([k, v]) => `<div class="card"><b>${v}</b>${k}</div>`).join('')}</div>
+    out.innerHTML = `<div class="stats">${Object.entries({ 'All users': s.users, Verified: s.verified, Women: s.women, Men: s.men, Steady: s.steady, Forever: s.forever, 'After Dark': s.afterdark, 'Destiny on': s.destiny_on, 'Open chats': s.active_chats, 'Scam flags': s.scam_flags, Waitlist: s.waitlist, 'Open reports': s.open_reports, 'Help tickets': s.open_tickets }).map(([k, v]) => `<div class="card"><b>${v}</b>${k}</div>`).join('')}</div>
     <h2>Verification queue (${pending.length})</h2>
     ${pending.length ? '' : '<p class="hint">Nobody waiting.</p>'}
     ${pending.map((u) => `<div class="card req" data-uid="${u.id}">

@@ -1,38 +1,38 @@
 // PAUSE — "Ask PAUSE" help bot. Rule-based: answers rules, how-tos and account status.
 // It never reads anyone's chats. Anything it can't answer goes to a human via a support ticket.
-const CHIPS = ['How does Masked work?', 'What is Destiny?', 'Why only 5 chats?', 'Is my verification done?', 'Kundli matching', 'Safety & emergency', 'Report someone', 'Talk to a human'];
+const CHIPS = ['How does Masked work?', 'What is Destiny?', 'Why only five chats?', 'Is my verification done?', 'Kundli matching', 'Safety and emergencies', 'Report someone', 'Talk to a person'];
 
 const STATUS = {
   new: 'You haven’t sent your ID yet. Finish your profile, then go to Verify: one ID photo + one selfie. A real person checks it, usually within a few hours.',
   pending: 'Your ID is in the queue. A real person is checking it, usually within a few hours. Once approved we delete your ID photo and selfie.',
-  verified: 'You’re verified ✅. Your ID photo and selfie were deleted after the check; we only keep the verified tick and a one-way code of your ID number.',
+  verified: 'You’re verified. Your ID photo and selfie were deleted after the check; we only keep the verified tick and a one-way code of your ID number.',
   rejected: 'Your last check didn’t pass. Open the app and you’ll see the reason; you can try again with a clearer selfie or ID photo.',
   banned: 'This account has been banned after a review. If you think this is a mistake, write to our grievance officer.'
 };
 
 const INTENTS = [
   { k: ['masked', 'mask', 'unmask', 'blur', 'hidden photo', 'photo hide', 'photos hidden', 'chehra'], a: () =>
-    '🎭 Masked keeps photos hidden. If either of you is masked, you both stay masked in picks and chat. When you’re ready, tap Unmask. Photos open only when BOTH of you tap it. You can turn Masked on or off in any category from your profile.' },
+    'Masked keeps photos hidden. If either of you is masked, you both stay masked in picks and chat. When you’re ready, tap Unmask. Photos open only when BOTH of you tap it. You can turn Masked on or off in any category from your profile.' },
   { k: ['destiny', 'questionnaire', 'questions', '9 pm', '9pm', 'drop', 'kismat', 'compatib'], a: () =>
-    '🔮 Destiny is optional. Turn it on in a category and answer 12 quick questions (about 3 minutes). You’ll see a match % on your picks, and every night at 9 pm you get one hand-picked Destiny match with the reasons you fit.' },
+    'Destiny is optional. Turn it on in a category and answer 12 quick questions (about 3 minutes). You’ll see a match % on your picks, and every night at 9 pm you get one hand-picked Destiny match with the reasons you fit.' },
   { k: ['5 chats', 'five', 'focus', 'limit', 'only 5', 'more chats', 'why 5', 'slots'], a: () =>
     'Focus 5: everyone can talk to 5 people at a time — men and women alike. It keeps conversations real and stops spam. To meet someone new, close a chat politely from the chat menu and the slot frees up.' },
   { k: ['category', 'categories', 'steady', 'forever', 'after dark', 'afterdark', 'mode', 'switch'], a: () =>
-    'Three categories: Steady 💞 (dating that’s going somewhere), Forever 💍 (marriage-minded, kundli optional) and After Dark 🌙 (casual, honest, still fully verified). You only meet people in the same category. You can switch once a week from your profile.' },
+    'Three categories: Steady (dating that’s going somewhere), Forever (marriage-minded, kundli optional) and After Dark (casual, honest, still fully verified). You only meet people in the same category. You can switch once a week from your profile.' },
   { k: ['verify', 'verification', 'verified', 'id', 'aadhaar', 'pan', 'selfie', 'approve', 'approval', 'queue', 'kab'], a: (u) =>
     u ? STATUS[u.status] || STATUS.new : 'Everyone does the same check: one government ID photo + one selfie, checked by a real person. One ID can only ever make one account. After the check we delete both images.' },
   { k: ['kundli', 'guna', 'gun milan', 'nakshatra', 'rashi', 'manglik', 'astrology'], a: () =>
-    '🪔 Kundli is only in Forever, and it’s optional. Add your birth time (we calculate your Moon sign and Nakshatra) or pick your Rashi and Nakshatra yourself. When both people have it on, picks show a guna score out of 36, and you can filter by a minimum score.' },
+    'Kundli is only in Forever, and it’s optional. Add your birth time (we calculate your Moon sign and Nakshatra) or pick your Rashi and Nakshatra yourself. When both people have it on, picks show a guna score out of 36, and you can filter by a minimum score.' },
   { k: ['horoscope', 'zodiac', 'sun sign', 'star sign'], a: () =>
-    'Zodiac is optional in Steady and After Dark. Turn on “Show my zodiac” in your profile and your sign appears as a small badge. It’s never used to hide anyone.' },
-  { k: ['emergency', 'unsafe', 'danger', 'help me', 'sos', '112', 'scared', 'police'], a: () =>
-    '🚨 If you’re in danger, call 112 now. In the app, Safety has an SOS button that sends your live location to your trusted person on WhatsApp, and a date plan you can share before meeting.' },
+    'Zodiac is optional in Steady and After Dark. Turn on “Show my zodiac sign” in your profile and your sign appears on your card. It’s never used to hide anyone.' },
+  { k: ['emergency', 'emergencies', 'unsafe', 'danger', 'help me', 'sos', '112', 'scared', 'police'], a: () =>
+    'If you’re in danger, call 112 now. In the app, Safety has a button that sends your live location to your trusted person on WhatsApp, and a date plan you can share before meeting.' },
   { k: ['safe', 'safety', 'meet', 'first date', 'date plan', 'trusted'], a: () =>
     'Before a first meet: meet in a busy public place, share your date plan with a trusted person from the Safety tab, and keep the chat on PAUSE until you trust them. Numbers stay hidden until you both tap Share numbers.' },
   { k: ['report', 'harass', 'abuse', 'fake', 'block', 'creep', 'rude'], a: () =>
     'Open the chat, tap ⋮ and choose Report or Block. Reporting also blocks them. A real person reviews every report; a ban blocks their ID forever, so they can’t make a new account.' },
   { k: ['scam', 'money', 'upi', 'crypto', 'investment', 'otp', 'loan'], a: () =>
-    '⚠️ Never send money, OTPs or “investment” deposits to someone you met online — even if the story sounds real. PAUSE flags messages that ask for money, crypto or OTPs. Report them from the chat menu.' },
+    'Never send money, OTPs or “investment” deposits to someone you met online — even if the story sounds real. PAUSE flags messages that ask for money, crypto or OTPs. Report them from the chat menu.' },
   { k: ['screenshot', 'screen shot', 'leak', 'save photo'], a: () =>
     'Photos you see are watermarked with your account code, so a leaked screenshot can be traced. The Android app will block screenshots completely.' },
   { k: ['number', 'phone number', 'contact', 'instagram', 'whatsapp', 'share number'], a: () =>
@@ -50,7 +50,7 @@ const INTENTS = [
   { k: ['grievance', 'complaint', 'officer', 'legal', 'rules', 'terms', 'regulation'], a: () =>
     'Our rules are in the Terms (18+ only, one person one account, no harassment, no money requests, no explicit content). For complaints you can reach our grievance officer — details are on the Grievance page; we acknowledge within 24 hours.' },
   { k: ['game', 'this or that', 'truth', 'lie', 'play'], a: () =>
-    '🎲 In any chat, tap Play: “This or That” (you both pick, answers show when both are in) or “2 truths 1 lie”. It’s the easiest way to break the ice before you unmask.' },
+    'In any chat, tap the game button: “This or that” (answers show once you’ve both picked) or “Two truths, one lie”. It’s the easiest way to break the ice before you unmask.' },
   { k: ['human', 'agent', 'person', 'talk to', 'support', 'contact us', 'customer care'], a: () =>
     'Sure — write your question below and tap Send to our team. A person replies on your registered number or email.', human: true }
 ];
