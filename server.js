@@ -92,8 +92,19 @@ async function migrate() {
   ALTER TABLE photos ADD COLUMN IF NOT EXISTS token TEXT;
   CREATE UNIQUE INDEX IF NOT EXISTS photos_token ON photos(token);
   ALTER TABLE verifications ADD COLUMN IF NOT EXISTS id_last4 TEXT DEFAULT '';
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS insta TEXT DEFAULT '';
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS linkedin TEXT DEFAULT '';
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS id_verified BOOLEAN DEFAULT FALSE;
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS id_pending BOOLEAN DEFAULT FALSE;
   CREATE TABLE IF NOT EXISTS otps (phone TEXT NOT NULL, purpose TEXT NOT NULL, code_hash TEXT NOT NULL, expires_at TIMESTAMPTZ NOT NULL, attempts INT DEFAULT 0, PRIMARY KEY (phone, purpose));
   `);
+  // One-time: everyone verified before social links existed was verified with an ID.
+  const { rows: sv } = await q("SELECT 1 FROM app_meta WHERE key='social_v1'");
+  if (!sv[0]) {
+    await q("UPDATE users SET id_verified=true WHERE status='verified' AND id_hash IS NOT NULL");
+    await q("UPDATE users u SET id_pending=true FROM verifications v WHERE v.user_id=u.id AND u.status='pending' AND v.id_image IS NOT NULL");
+    await q("INSERT INTO app_meta(key, value) VALUES('social_v1', now()::text) ON CONFLICT DO NOTHING");
+  }
   // Photos are addressed by a random token, never by their row number.
   const { rows: untokened } = await q('SELECT id FROM photos WHERE token IS NULL');
   for (const r of untokened) await q('UPDATE photos SET token=$2 WHERE id=$1', [r.id, newToken()]);
@@ -141,6 +152,18 @@ const ID_FORMATS = {
   Passport: [/^[A-Z]\d{7}$/, 'A passport number looks like A1234567.']
 };
 const normId = (s) => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+// Step 2: an Instagram or LinkedIn link, seen only by our reviewers. An ID check is optional and adds an ID-verified badge.
+const SOCIAL_AUTO = process.env.SOCIAL_AUTO_APPROVE === '1';
+function normInsta(v) {
+  v = String(v || '').trim(); if (!v) return '';
+  const h = v.replace(/^@/, '').replace(/^(https?:\/\/)?(www\.)?instagram\.com\//i, '').split(/[/?#]/)[0];
+  return /^[A-Za-z0-9._]{1,30}$/.test(h) ? 'https://www.instagram.com/' + h.toLowerCase() : null;
+}
+function normLinkedin(v) {
+  v = String(v || '').trim(); if (!v) return '';
+  const m = v.match(/^(?:https?:\/\/)?(?:[a-z]{2,3}\.)?linkedin\.com\/in\/([A-Za-z0-9\-_%]{3,100})\/?(?:[?#].*)?$/i);
+  return m ? 'https://www.linkedin.com/in/' + m[1].toLowerCase() : null;
+}
 const hmac = (s) => crypto.createHmac('sha256', SECRET).update(normId(s)).digest('hex');
 const ageOf = (dob) => {
   if (!dob) return null;
@@ -234,7 +257,7 @@ function publicUser(u, photos = [], forMode) {
   const mode = forMode || u.mode;
   const out = {
     id: u.id, name: u.name, age: ageOf(u.dob), city: u.city, gender: u.gender, mode: u.mode, masked: u.masked,
-    bio: u.bio, prompt_q: u.prompt_q, prompt_a: u.prompt_a, tags: u.tags || [], verified: u.status === 'verified', photos,
+    bio: u.bio, prompt_q: u.prompt_q, prompt_a: u.prompt_a, tags: u.tags || [], verified: u.status === 'verified', id_verified: !!u.id_verified, photos,
     diet: u.diet || '', height_cm: u.height_cm || null
   };
   if (mode === 'forever') { out.religion = u.religion || ''; if (u.kundli_on && u.manglik !== 'unknown') out.manglik = u.manglik; }
@@ -247,6 +270,7 @@ async function meJson(u) {
     ...publicUser(u, await photoIds(u.id)), phone: u.phone, interested: u.interested, dob: u.dob, any_city: u.any_city,
     company: u.company, hide_company: u.hide_company, hidden_phones: u.hidden_phones, age_min: u.age_min, age_max: u.age_max,
     trusted_name: u.trusted_name, trusted_phone: u.trusted_phone, status: u.status, reject_reason: u.reject_reason,
+    insta: u.insta || '', linkedin: u.linkedin || '', id_pending: !!u.id_pending,
     mode_changed_at: u.mode_changed_at, destiny: u.destiny, paused: u.paused, show_zodiac: u.show_zodiac, zodiac: zodiacOf(u.dob),
     religion: u.religion || '', same_religion: u.same_religion, kundli_on: u.kundli_on, kundli_min: u.kundli_min,
     birth_time: u.birth_time, birth_place: u.birth_place, manglik: u.manglik, chart: kundli.chart(u.moon_long),
@@ -398,7 +422,27 @@ app.delete('/api/me/photos/:token', authW, wrap(async (req, res) => {
   res.json(await photoIds(req.user.id));
 }));
 
-// ---------- verification (same check for everyone) ----------
+// ---------- verification: social link (required), ID (optional badge) ----------
+app.post('/api/me/social', authW, wrap(async (req, res) => {
+  const u = req.user;
+  if (!u.name || !u.gender || !u.dob || !u.city) return err(res, 400, 'Complete your profile first');
+  const { rows: ph } = await q('SELECT count(*)::int AS n FROM photos WHERE user_id=$1', [u.id]);
+  if (ph[0].n < 1) return err(res, 400, 'Add at least one photo first');
+  const wait = limited('social:' + u.id, 10, 24 * 60 * 60000);
+  if (wait) return tooMany(res, wait);
+  const insta = normInsta(req.body.instagram), li = normLinkedin(req.body.linkedin);
+  if (insta === null) return err(res, 400, 'That Instagram doesn’t look right. Use your @handle or profile link.');
+  if (li === null) return err(res, 400, 'That LinkedIn doesn’t look right. Use your profile link, like linkedin.com/in/your-name.');
+  if (!insta && !li) return err(res, 400, 'Add your Instagram or LinkedIn');
+  const { rows: dup } = await q(`SELECT id FROM users WHERE id<>$1
+    AND ((insta<>'' AND insta=$2) OR (linkedin<>'' AND linkedin=$3))`, [u.id, insta || '-', li || '-']);
+  if (dup[0]) return err(res, 409, 'That profile is already linked to another account. One person, one account.');
+  const next = u.status === 'verified' ? 'verified' : SOCIAL_AUTO ? 'verified' : 'pending';
+  await q('UPDATE users SET insta=$2, linkedin=$3, status=$4, reject_reason=$5 WHERE id=$1', [u.id, insta, li, next, '']);
+  res.json({ ok: true, status: next });
+}));
+
+// ---------- ID check (optional, same for everyone) ----------
 app.post('/api/me/verify', authW, wrap(async (req, res) => {
   const u = req.user;
   if (!u.name || !u.gender || !u.dob || !u.city) return err(res, 400, 'Complete your profile first');
@@ -417,11 +461,12 @@ app.post('/api/me/verify', authW, wrap(async (req, res) => {
   if (banned[0]) return err(res, 403, 'This ID cannot be used on ' + BRAND + '.');
   const { rows: dup } = await q('SELECT id FROM users WHERE id_hash=$1 AND id<>$2', [idHash, u.id]);
   if (dup[0]) return err(res, 409, 'This ID is already linked to another account. One person, one account.');
-  await q('UPDATE users SET id_hash=$2, status=$3, reject_reason=$4 WHERE id=$1', [u.id, idHash, 'pending', '']);
+  await q(`UPDATE users SET id_hash=$2, id_pending=true, reject_reason='', status=CASE WHEN status IN ('new','rejected') THEN 'pending' ELSE status END WHERE id=$1`, [u.id, idHash]);
   await q(`INSERT INTO verifications(user_id, id_type, id_image, selfie, id_last4) VALUES($1,$2,$3,$4,$5)
     ON CONFLICT (user_id) DO UPDATE SET id_type=$2, id_image=$3, selfie=$4, id_last4=$5, submitted_at=now()`,
   [u.id, idType, idImg, selfie, idNum.slice(-4)]);
-  res.json({ ok: true, status: 'pending' });
+  const { rows: st } = await q('SELECT status FROM users WHERE id=$1', [u.id]);
+  res.json({ ok: true, status: st[0].status });
 }));
 
 // ---------- kundli (Forever only) ----------
@@ -865,8 +910,10 @@ function admin(req, res, next) {
   next();
 }
 app.get('/api/admin/pending', admin, wrap(async (req, res) => {
-  const { rows } = await q(`SELECT u.id, u.name, u.gender, u.dob, u.city, u.phone, u.mode, v.id_type, v.id_last4, v.submitted_at
-    FROM users u JOIN verifications v ON v.user_id=u.id WHERE u.status='pending' ORDER BY v.submitted_at`);
+  const { rows } = await q(`SELECT u.id, u.name, u.gender, u.dob, u.city, u.phone, u.mode, u.status, u.insta, u.linkedin, u.id_pending,
+      v.id_type, v.id_last4, v.submitted_at, (v.id_image IS NOT NULL AND u.id_pending) AS has_id
+    FROM users u LEFT JOIN verifications v ON v.user_id=u.id
+    WHERE u.status='pending' OR u.id_pending ORDER BY COALESCE(v.submitted_at, u.created_at)`);
   const out = [];
   for (const r of rows) out.push({ ...r, age: ageOf(r.dob), photos: await photoIds(r.id) });
   res.json(out);
@@ -901,8 +948,18 @@ app.get('/api/admin/photo/:token', admin, wrap(async (req, res) => {
   res.set('Content-Type', 'image/jpeg'); res.set('Cache-Control', 'no-store'); res.send(rows[0].full_img);
 }));
 app.post('/api/admin/decide/:uid', admin, wrap(async (req, res) => {
-  const approve = req.body.approve === true;
-  await q('UPDATE users SET status=$2, reject_reason=$3 WHERE id=$1', [req.params.uid, approve ? 'verified' : 'rejected', approve ? '' : clean(req.body.reason, 200)]);
+  const approve = req.body.approve === true, idOk = approve && req.body.id_ok !== false;
+  const { rows } = await q('SELECT status, id_pending FROM users WHERE id=$1', [req.params.uid]);
+  if (!rows[0]) return err(res, 404, 'Not found');
+  const u = rows[0], reason = clean(req.body.reason, 200);
+  if (u.status === 'pending') {
+    await q('UPDATE users SET status=$2, reject_reason=$3 WHERE id=$1', [req.params.uid, approve ? 'verified' : 'rejected', approve ? '' : reason]);
+  }
+  if (u.id_pending) {
+    // An ID that doesn't pass is unlinked, so it can't block the real owner later.
+    await q(`UPDATE users SET id_pending=false, id_verified=$2, id_hash=CASE WHEN $2 THEN id_hash ELSE NULL END,
+      reject_reason=CASE WHEN $2 OR status<>'verified' THEN reject_reason ELSE $3 END WHERE id=$1`, [req.params.uid, idOk, reason ? 'ID check: ' + reason : 'ID check didn’t pass']);
+  }
   await q('UPDATE verifications SET id_image=NULL, selfie=NULL WHERE user_id=$1', [req.params.uid]); // delete ID + selfie after a decision
   res.json({ ok: true });
 }));

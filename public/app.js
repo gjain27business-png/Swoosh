@@ -38,7 +38,8 @@ const P = {
   calendar: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',
   check: '<path d="M5 12.5l4.5 4.5L19 7"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
-  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  chev: '<path d="M9 6l6 6-6 6"/>'
 };
 const I = (name, extra = '') => `<svg class="ic ${extra}" viewBox="0 0 24 24" aria-hidden="true">${P[name] || ''}</svg>`;
 const OBJ = (name) => (window.PauseObj ? PauseObj.svg(name) : '');
@@ -51,6 +52,7 @@ const CAT = {
   afterdark: { name: 'After Dark', icon: 'moon', line: 'Casual and honest. Still fully verified.' }
 };
 const GENDERS = { woman: 'Woman', man: 'Man', nonbinary: 'Non-binary' };
+const SEEKING = { woman: 'Women', man: 'Men', nonbinary: 'Non-binary people' };
 const STEPS = ['Masked', 'Unmasked', 'Numbers shared'];
 let ME = null;
 let CFG = { brand: 'PAUSE', live_cities: ['Bangalore', 'Delhi NCR'], focus: 5, religions: [], diets: [], nakshatras: [], rashis: [] };
@@ -141,7 +143,7 @@ async function route() {
   if (view === 'safety') return safetyView();
   if (view === 'destiny') return destinyView(arg || ME.mode);
   if (view === 'kundli') return kundliView();
-  if (ME.status !== 'verified') return verifyView();
+  if (ME.status !== 'verified' || view === 'verify') return verifyView();
   if (view === 'chats') return chatsView();
   if (view === 'chat' && arg) return chatView(arg);
   if (view === 'drop') return dropView();
@@ -157,7 +159,7 @@ function authView(mode) {
   render(`<main class="screen fade-in" style="padding-top:24px">
     <div class="authhero">${WORDMARK}<div class="ahs" aria-hidden="true"><span class="o1">${OBJ('mask')}</span><span class="o2">${OBJ('kulhad')}</span><span class="o3">${OBJ('heart')}</span><span class="o4">${OBJ('star')}</span><span class="stk mint s1">${I('heart')}It’s mutual!</span><span class="stk s2">Chai pe chalein?</span></div></div>
     ${reset ? '<h1 style="font-size:42px;margin:28px 0 12px">Reset your password.</h1><p class="hint" style="font-size:15px;margin:0 0 24px">We’ll text a 6-digit code to your number.</p>' : `    <h1 style="font-size:42px;margin:28px 0 12px">${signup ? 'Hit pause on swiping.' : 'Welcome back.'}</h1>
-    <p class="hint" style="font-size:15px;margin:0 0 24px">${signup ? 'Every member is ID-verified. You can have up to five matches at a time, and photos stay masked until you both choose to unmask. Live in Bangalore and Delhi NCR.' : 'Log in with your mobile number.'}</p>`}
+    <p class="hint" style="font-size:15px;margin:0 0 24px">${signup ? 'Every member is checked by a real person. You can have up to five matches at a time, and photos stay masked until you both choose to unmask. Live in Bangalore and Delhi NCR.' : 'Log in with your mobile number.'}</p>`}
     <form id="f">
       <div class="field"><label for="phone">Mobile number</label><input id="phone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="10-digit number" required></div>
       ${needCode ? `<div class="field" id="codef" hidden><label for="otp">6-digit code</label><input id="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="Sent by SMS"><span class="hint" id="codeh"></span></div>` : ''}
@@ -208,8 +210,9 @@ function profileView(onboarding) {
   render(`<main class="screen">
     <div class="top"><h1>${onboarding ? 'Your profile' : 'Profile'}</h1>${onboarding ? '' : '<button class="btn ghost" id="logout" style="min-height:40px">Log out</button>'}</div>
     <div class="profilehead">${m.photos[0] ? `<img class="av" style="width:56px;height:56px;border-radius:28px" src="/api/photo/${m.photos[0].id}" alt="">` : `<span class="av" style="width:56px;height:56px;border-radius:28px">${initial(m.name)}</span>`}
-      <div style="flex:1"><div style="font-weight:600;display:flex;gap:8px;align-items:center">${esc(m.name || 'Your profile')} ${m.status === 'verified' ? `<span class="vtick">${I('check')}Verified</span>` : ''}</div>
-      <div class="hint">${onboarding ? 'Step 1 of 2. Next you’ll verify your ID.' : `Profile ${pct}% complete`}</div><div class="bar"><i style="width:${pct}%"></i></div></div></div>
+      <div style="flex:1"><div style="font-weight:600;display:flex;gap:8px;align-items:center">${esc(m.name || 'Your profile')} ${m.status === 'verified' ? `<span class="vtick">${I('check')}${m.id_verified ? 'ID verified' : 'Verified'}</span>` : ''}</div>
+      <div class="hint">${onboarding ? 'Step 1 of 2. Next, link your Instagram or LinkedIn.' : `Profile ${pct}% complete`}</div><div class="bar"><i style="width:${pct}%"></i></div></div></div>
+    ${!onboarding && m.status === 'verified' && !m.id_verified ? `<a class="idcta" href="#verify">${I(m.id_pending ? 'clock' : 'shield')}<span><b>${m.id_pending ? 'ID check in progress' : 'Get the ID-verified badge'}</b>${m.id_pending ? 'Usually within a few hours.' : 'Optional. Takes two minutes.'}</span>${I('chev')}</a>` : ''}
     <form id="pf">
       <div class="field"><span class="flabel">Photos</span><div class="photos">${photoSlots}</div><span class="hint">Add one to four. Everyone who sees them sees a faint watermark with their own account code.</span></div>
       <div class="field"><label for="fname">First name</label><input id="fname" value="${esc(m.name)}" maxlength="40" required autocomplete="given-name"></div>
@@ -219,7 +222,7 @@ function profileView(onboarding) {
           <input id="city" value="${esc(CFG.live_cities.includes(m.city) ? '' : m.city)}" placeholder="Your city" style="display:${m.city && !CFG.live_cities.includes(m.city) ? 'block' : 'none'};margin-top:8px" aria-label="Your city"></div>
       </div>
       <div class="field"><span class="flabel">I am</span><div class="chips">${pills('gender', GENDERS, m.gender, false)}</div></div>
-      <div class="field"><span class="flabel">Show me</span><div class="chips">${pills('interested', GENDERS, m.interested, true)}</div></div>
+      <div class="field"><span class="flabel">Interested in</span><div class="chips">${pills('interested', SEEKING, m.interested, true)}</div><span class="hint">Pick one or more. Only people who are also interested in you will see you.</span></div>
 
       <h2 class="section-t">Category</h2>
       <div class="catgrid" role="group" aria-label="Category">${Object.entries(CAT).map(([k, c]) => `<button type="button" class="catcard" data-cat="${k}" aria-pressed="${k === cat}"><span class="circ">${I(c.icon)}</span><span><b>${c.name}</b><span class="l">${c.line}</span></span><span class="tick" aria-hidden="true"></span></button>`).join('')}</div>
@@ -312,51 +315,63 @@ function profileView(onboarding) {
 
 // ---------- verification ----------
 function verifyView() {
-  const s = ME.status;
-  if (s === 'pending') {
+  const s = ME.status, idOnly = s === 'verified';
+  if (s === 'pending' || (idOnly && ME.id_pending)) {
     render(`<main class="screen fade-in" style="padding-top:64px">
+      ${idOnly ? `<a href="#profile" class="backlink">${I('back')}Profile</a>` : ''}
       <span class="circ" style="width:56px;height:56px;border-radius:28px">${I('shield')}</span>
-      <h1 style="font-size:34px;margin:24px 0 10px">You’re in the queue.</h1>
-      <p class="hint" style="font-size:15px">A member of our team is checking your ID and selfie, usually within a few hours. Once we decide, both images are deleted and only your verified status is kept.</p>
+      <h1 style="font-size:34px;margin:24px 0 10px">${idOnly ? 'Your ID is being checked.' : 'You’re in the queue.'}</h1>
+      <p class="hint" style="font-size:15px">${idOnly ? 'A member of our team is comparing your ID with your selfie, usually within a few hours. You can keep using PAUSE meanwhile. Both images are deleted once we decide.' : 'A member of our team is taking a quick look at your profile and links, usually within a few hours. Your links are never shown to other members.'}</p>
       <div style="display:flex;flex-direction:column;gap:10px;margin-top:28px">
         <button class="btn" id="re">Check status</button>
-        ${(ME.destiny_done || []).includes(ME.mode) ? '' : `<a class="btn ghost" href="#destiny/${ME.mode}">Answer Destiny questions meanwhile</a>`}
-        <a class="btn ghost" href="#profile">Edit profile</a>
-        <a class="btn ghost" href="#safety">Set up safety</a>
+        ${idOnly || (ME.destiny_done || []).includes(ME.mode) ? '' : `<a class="btn ghost" href="#destiny/${ME.mode}">Answer Destiny questions meanwhile</a>`}
+        ${idOnly ? '' : '<a class="btn ghost" href="#profile">Edit profile</a><a class="btn ghost" href="#safety">Set up safety</a>'}
       </div></main>`);
     el('re').onclick = route;
     return;
   }
-  render(`<main class="screen">
-    <div class="top"><h1 style="font-size:32px">Verify it’s you</h1></div>
-    <p class="hint" style="font-size:15px;margin-top:-6px">Step 2 of 2. Every member goes through the same check, so the people you meet are who they say they are.</p>
-    ${s === 'rejected' ? `<div class="note" style="margin-bottom:16px">${I('alert')}<span>Your last check didn’t pass${ME.reject_reason ? ': ' + esc(ME.reject_reason) : ''}. Please try again with clearer photos.</span></div>` : ''}
-    <form id="vf">
+  const idForm = `
       <div class="field"><label for="idt">ID type</label><select id="idt"><option>PAN</option><option>Driving licence</option><option>Voter ID</option><option>Passport</option></select></div>
-      <div class="field"><label for="idn">ID number</label><input id="idn" autocomplete="off" required minlength="6"><span class="hint" id="idh">Looks like ABCDE1234F. We keep only a one-way code so one ID can’t open two accounts, plus the last 4 digits so our reviewer can match it to your photo. The full number is never stored or shown.</span></div>
-      <div class="field"><label for="idi">Photo of your ID (front)</label><input id="idi" type="file" accept="image/*" required><span class="hint" id="idph">A clear photo of the front of your PAN card. We don’t accept Aadhaar.</span></div>
-      <div class="field"><label for="sf">A selfie, facing the camera in good light</label><input id="sf" type="file" accept="image/*" capture="user" required></div>
-      <div class="note" style="margin-bottom:16px">${I('lock')}<span>A person compares your selfie with your ID and photos. Both images are deleted as soon as we decide.</span></div>
+      <div class="field"><label for="idn">ID number</label><input id="idn" autocomplete="off" minlength="6"><span class="hint" id="idh"></span></div>
+      <div class="field"><label for="idi">Photo of your ID (front)</label><input id="idi" type="file" accept="image/*"><span class="hint" id="idph"></span></div>
+      <div class="field"><label for="sf">A selfie, facing the camera in good light</label><input id="sf" type="file" accept="image/*" capture="user"></div>
+      <div class="note" style="margin-bottom:6px">${I('lock')}<span>A person compares your selfie with your ID and photos. Both images are deleted as soon as we decide. We don’t accept Aadhaar.</span></div>`;
+  render(`<main class="screen">
+    ${idOnly ? `<a href="#profile" class="backlink">${I('back')}Profile</a>` : ''}
+    <div class="top"><h1 style="font-size:32px">${idOnly ? 'Get the ID-verified badge' : 'Show you’re real'}</h1></div>
+    <p class="hint" style="font-size:15px;margin-top:-6px">${idOnly ? 'Optional. Members with the badge show “ID verified” on their profile, so others know their ID was checked by a person.' : 'Step 2 of 2. Link your Instagram or LinkedIn. A member of our team takes a quick look to check you’re real. Your links are never shown to other members.'}</p>
+    ${ME.reject_reason ? `<div class="note" style="margin-bottom:16px">${I('alert')}<span>Your last check didn’t pass: ${esc(ME.reject_reason)}. Please try again.</span></div>` : ''}
+    <form id="vf">
+      ${idOnly ? idForm : `
+      <div class="field"><label for="ig">Instagram</label><input id="ig" value="${esc((ME.insta || '').replace('https://www.instagram.com/', '@'))}" placeholder="@yourhandle or profile link" autocomplete="off" autocapitalize="off"></div>
+      <div class="field"><label for="li">LinkedIn</label><input id="li" value="${esc(ME.linkedin || '')}" placeholder="linkedin.com/in/your-name" autocomplete="off" autocapitalize="off"><span class="hint">Add at least one. A public profile with your photos is checked fastest.</span></div>
+      <details class="idopt"><summary><b>Add an ID check</b> (optional) <span class="hint">Get the “ID verified” badge</span></summary>${idForm}</details>`}
       <div class="err" id="err" role="alert"></div>
-      <button class="btn block" type="submit" id="vb">Submit for verification</button>
+      <button class="btn block" type="submit" id="vb" style="margin-top:14px">${idOnly ? 'Submit ID for checking' : 'Submit for review'}</button>
     </form>
-    <p style="text-align:center;margin-top:16px"><a href="#profile">Edit profile</a></p>
+    ${idOnly ? '' : '<p style="text-align:center;margin-top:16px"><a href="#profile">Edit profile</a></p>'}
   </main>`);
   const ID_HINTS = {
-    PAN: ['Looks like ABCDE1234F.', 'A clear photo of the front of your PAN card. We don’t accept Aadhaar.'],
+    PAN: ['Looks like ABCDE1234F.', 'A clear photo of the front of your PAN card.'],
     'Driving licence': ['Looks like MH1420110012345.', 'A clear photo of the front of your driving licence.'],
     'Voter ID': ['Looks like ABC1234567.', 'A clear photo of the front of your Voter ID.'],
     Passport: ['Looks like A1234567.', 'A clear photo of the page with your photo.']
   };
   const keepNote = ' We keep only a one-way code so one ID can’t open two accounts, plus the last 4 characters so our reviewer can match it to your photo. The full number is never stored or shown.';
-  el('idt').onchange = () => { const h = ID_HINTS[el('idt').value]; el('idh').textContent = h[0] + keepNote; el('idph').textContent = h[1]; };
+  const hint = () => { const h = ID_HINTS[el('idt').value]; el('idh').textContent = h[0] + keepNote; el('idph').textContent = h[1]; };
+  el('idt').onchange = hint; hint();
   el('vf').onsubmit = async (e) => {
     e.preventDefault();
-    const btn = el('vb'); btn.disabled = true; btn.textContent = 'Uploading…';
+    const btn = el('vb'), label = btn.textContent;
+    const idParts = [el('idn').value.trim(), el('idi').files[0], el('sf').files[0]];
+    const wantsId = idOnly || idParts.some(Boolean);
+    if (wantsId && !idParts.every(Boolean)) { el('err').textContent = 'For the ID check, add the ID number, a photo of your ID and a selfie' + (idOnly ? '.' : ', or leave all three empty.'); return; }
+    btn.disabled = true; btn.textContent = 'Sending…';
     try {
-      await api('/me/verify', { method: 'POST', body: { id_type: el('idt').value, id_number: el('idn').value, id_image: await compress(el('idi').files[0], 1600), selfie: await compress(el('sf').files[0]) } });
-      ME.status = 'pending'; verifyView();
-    } catch (x) { el('err').textContent = x.message; btn.disabled = false; btn.textContent = 'Submit for verification'; }
+      if (!idOnly) await api('/me/social', { method: 'POST', body: { instagram: el('ig').value, linkedin: el('li').value } });
+      if (wantsId) { btn.textContent = 'Uploading ID…'; await api('/me/verify', { method: 'POST', body: { id_type: el('idt').value, id_number: el('idn').value, id_image: await compress(el('idi').files[0], 1600), selfie: await compress(el('sf').files[0]) } }); }
+      route();
+    } catch (x) { el('err').textContent = x.message; btn.disabled = false; btn.textContent = label; }
   };
 }
 
@@ -373,7 +388,7 @@ function pickCard(p) {
   return `<article class="card pick fade-in" id="card">
     <div class="ph">${photo}${p.masked ? `<span class="masklabel">${I('mask')}Masked until you both unmask</span>` : ''}
       <div class="over"><h2>${esc(p.name)}, ${p.age}</h2>
-        <div class="city">${esc(p.city)}<span class="vtick">${I('check')}Verified</span></div>
+        <div class="city">${esc(p.city)}<span class="vtick">${I('check')}${p.id_verified ? 'ID verified' : 'Verified'}</span></div>
         ${badges.length ? `<div class="badges">${badges.join('')}</div>` : ''}</div>
     </div>
     <div class="body">
@@ -688,7 +703,7 @@ async function chatView(id) {
       <header class="chathead">
         <a class="back" href="#chats" aria-label="Back to chats" style="width:36px">${I('back')}</a>
         ${o.photos[0] ? `<img class="av" style="width:42px;height:42px;border-radius:21px" src="/api/photo/${o.photos[0].id}?l=${d.level}" alt="${esc(o.name)}">` : `<span class="av" style="width:42px;height:42px;border-radius:21px">${initial(o.name)}</span>`}
-        <div style="flex:1;min-width:0"><div style="font-weight:600">${esc(o.name)}, ${o.age}</div><small>Verified, ${esc(o.city)}${d.kundli ? `, kundli ${d.kundli.total} of 36` : ''}</small></div>
+        <div style="flex:1;min-width:0"><div style="font-weight:600">${esc(o.name)}, ${o.age}</div><small>${o.id_verified ? 'ID verified' : 'Verified'}, ${esc(o.city)}${d.kundli ? `, kundli ${d.kundli.total} of 36` : ''}</small></div>
         <button aria-label="Chat options" id="mbtn" style="background:none;border:none;width:44px;height:44px;cursor:pointer;display:flex;align-items:center;justify-content:center">${I('dots')}</button>
       </header>
       <div class="steps" aria-label="Progress">${STEPS.map((l, k) => `<div class="${k <= d.level ? 'on' : ''}"><i></i>${l}</div>`).join('')}</div>
@@ -764,7 +779,7 @@ function safetyView() {
     <div class="card" style="padding:2px 16px">
       ${info('drop', 'Photo watermark', 'Every photo you see carries a faint watermark with your account code, so a leaked screenshot can be traced.')}
       ${info('alert', 'Scam warnings', 'Messages asking for money, OTPs, crypto or containing links are flagged. Numbers and handles stay locked until you both share.')}
-      ${info('id', 'One ID, one account', 'A banned member’s ID can’t be used to sign up again.')}
+      ${info('id', 'One person, one account', 'An ID, Instagram or LinkedIn can be linked to only one account, and banned members can’t reuse them.')}
     </div>
     <h2 class="section-t">Contact shield</h2>
     <div class="card" style="padding:4px 16px 16px">

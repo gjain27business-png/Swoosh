@@ -16,6 +16,7 @@ main{max-width:1000px;margin:0 auto;padding:24px}
 h1,h2{font-weight:500}
 .req{padding:16px;margin-bottom:16px;display:flex;flex-direction:column;gap:12px}
 .imgs{display:flex;gap:10px;overflow-x:auto}
+.links{display:flex;gap:14px;flex-wrap:wrap;margin:6px 0 2px;font-size:14px}.links a{color:var(--heading);font-weight:600}
 .idchk{margin:6px 0 4px;font-size:13px;color:var(--muted)}.idchk b{color:var(--heading);letter-spacing:.08em}
 .imgs figure{margin:0;text-align:center;font-size:12px;color:var(--muted)}
 .imgs img{height:220px;border-radius:12px;display:block;margin-bottom:4px}
@@ -53,12 +54,13 @@ async function load() {
     <h2>Verification queue (${pending.length})</h2>
     ${pending.length ? '' : '<p class="hint">Nobody waiting.</p>'}
     ${pending.map((u) => `<div class="card req" data-uid="${u.id}">
-      <div><strong>${esc(u.name)}, ${u.age}</strong> · ${esc(u.gender)} · ${esc(u.city)} · ${esc(u.mode)} · ${esc(u.phone)} · ${esc(u.id_type)}</div>
-      <div class="idchk">Typed number ends in <b>${esc(u.id_last4 || '????')}</b>. Check it matches the ID photo before approving.</div>
-      <div class="imgs"><figure><img data-src="/verification/${u.id}/id" alt="ID">ID</figure><figure><img data-src="/verification/${u.id}/selfie" alt="Selfie">Selfie</figure>
+      <div><strong>${esc(u.name)}, ${u.age}</strong> · ${esc(u.gender)} · ${esc(u.city)} · ${esc(u.mode)} · ${esc(u.phone)}${u.status === 'verified' ? ' · <b>already verified, ID badge request</b>' : ''}</div>
+      <div class="links">${u.insta ? `<a href="${esc(u.insta)}" target="_blank" rel="noopener noreferrer">Instagram: ${esc(u.insta.replace('https://www.instagram.com/', '@'))}</a>` : ''}${u.linkedin ? `<a href="${esc(u.linkedin)}" target="_blank" rel="noopener noreferrer">LinkedIn: ${esc(u.linkedin.replace('https://www.linkedin.com/in/', ''))}</a>` : ''}${!u.insta && !u.linkedin ? '<span class="hint">No social link, ID only</span>' : ''}</div>
+      ${u.has_id ? `<div class="idchk">${esc(u.id_type)}: typed number ends in <b>${esc(u.id_last4 || '????')}</b>. Check it matches the ID photo.</div>` : ''}
+      <div class="imgs">${u.has_id ? `<figure><img data-src="/verification/${u.id}/id" alt="ID">ID</figure><figure><img data-src="/verification/${u.id}/selfie" alt="Selfie">Selfie</figure>` : ''}
       ${u.photos.map((p) => `<figure><img data-src="/photo/${p.id}" alt="Profile photo">Profile</figure>`).join('')}</div>
-      <p class="hint" style="margin:0">Check: selfie matches ID and profile photos; ID name and date of birth look consistent with the profile; age 18+.</p>
-      <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" data-ok="${u.id}">Approve</button><button class="btn ghost" data-no="${u.id}">Reject</button></div>
+      <p class="hint" style="margin:0">Check: the Instagram or LinkedIn looks like a real, active account of the same person as the profile photos (open it in a private window). ${u.has_id ? 'ID: selfie matches ID and photos, name and age look consistent, 18+.' : ''}</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">${u.has_id ? `<button class="btn" data-ok="${u.id}" data-id="1">Approve${u.status === 'verified' ? ' ID badge' : ' with ID badge'}</button>${u.status === 'verified' ? '' : `<button class="btn ghost" data-ok="${u.id}" data-id="0">Approve, ID didn’t match</button>`}` : `<button class="btn" data-ok="${u.id}" data-id="0">Approve</button>`}<button class="btn ghost" data-no="${u.id}">Reject${u.status === 'verified' ? ' ID' : ''}</button></div>
     </div>`).join('')}
     <h2 style="margin-top:32px">Reports (${reports.length})</h2>
     ${reports.map((r) => `<div class="card req"><div><strong>${esc(r.reported_name)}</strong> (${esc(r.reported_phone)}) — reported by user #${r.reporter} · ${r.flags} scam flags</div><div>${esc(r.reason)}</div>
@@ -71,7 +73,7 @@ async function load() {
     ${tickets.map((t) => `<div class="card req"><div><strong>${esc(t.name || 'Visitor')}</strong> · ${esc(t.phone || t.contact)} · ${new Date(t.created_at).toLocaleString('en-IN')}</div><div>${esc(t.message)}</div>
       <div><button class="btn ghost" data-tk="${t.id}">Mark resolved</button></div></div>`).join('') || '<p class="hint">No open tickets.</p>'}`;
     out.querySelectorAll('img[data-src]').forEach((i) => img(i.dataset.src, i));
-    out.querySelectorAll('[data-ok]').forEach((b) => b.onclick = async () => { await api('/decide/' + b.dataset.ok, { method: 'POST', body: { approve: true } }); load(); });
+    out.querySelectorAll('[data-ok]').forEach((b) => b.onclick = async () => { await api('/decide/' + b.dataset.ok, { method: 'POST', body: { approve: true, id_ok: b.dataset.id === '1' } }); load(); });
     out.querySelectorAll('[data-no]').forEach((b) => b.onclick = async () => { const reason = prompt('Reason shown to the user (e.g. selfie unclear)'); if (reason === null) return; await api('/decide/' + b.dataset.no, { method: 'POST', body: { approve: false, reason } }); load(); });
     out.querySelectorAll('[data-ban]').forEach((b) => b.onclick = async () => { if (confirm('Ban this person and their ID permanently?')) { await api('/ban/' + b.dataset.ban, { method: 'POST' }); load(); } });
     out.querySelectorAll('[data-tk]').forEach((b) => b.onclick = async () => { await api('/tickets/' + b.dataset.tk + '/resolve', { method: 'POST' }); load(); });

@@ -3,10 +3,10 @@
 const CHIPS = ['How does Masked work?', 'What is Destiny?', 'Why only five matches?', 'Is my verification done?', 'Kundli matching', 'Safety and emergencies', 'Report someone', 'Talk to a person'];
 
 const STATUS = {
-  new: 'You haven’t sent your ID yet. Finish your profile, then go to Verify: one ID photo + one selfie. A real person checks it, usually within a few hours.',
-  pending: 'Your ID is in the queue. A real person is checking it, usually within a few hours. Once approved we delete your ID photo and selfie.',
-  verified: 'You’re verified. Your ID photo and selfie were deleted after the check; we only keep the verified tick and a one-way code of your ID number.',
-  rejected: 'Your last check didn’t pass. Open the app and you’ll see the reason; you can try again with a clearer selfie or ID photo.',
+  new: 'You haven’t finished step 2 yet. Finish your profile, then link your Instagram or LinkedIn. A real person checks it, usually within a few hours. An ID check is optional.',
+  pending: 'You’re in the queue. A real person is checking your profile and links, usually within a few hours. If you added an ID, we delete the ID photo and selfie once we decide.',
+  verified: 'You’re verified. For the ID-verified badge, add an optional ID check from your Profile. ID photos and selfies are deleted after the check.',
+  rejected: 'Your last check didn’t pass. Open the app to see the reason; you can try again with a different link or clearer photos.',
   banned: 'This account has been banned after a review. If you think this is a mistake, write to our grievance officer.'
 };
 
@@ -19,8 +19,8 @@ const INTENTS = [
     'Everyone on PAUSE, men and women alike, can have up to 5 active matches. There’s no limit on browsing. At 5 matches, new matches pause: you can keep exploring, but you can’t like anyone new and you won’t appear in other people’s picks. If someone you liked likes you back while you’re full, it waits and becomes a match when a slot frees up. To make room, end a match from the chat menu.' },
   { k: ['category', 'categories', 'steady', 'forever', 'after dark', 'afterdark', 'mode', 'switch'], a: () =>
     'Three categories: Steady (dating that’s going somewhere), Forever (marriage-minded, kundli optional) and After Dark (casual, honest, still fully verified). You only meet people in the same category. You can switch once a week from your profile.' },
-  { k: ['verify', 'verification', 'verified', 'id', 'aadhaar', 'pan', 'selfie', 'approve', 'approval', 'queue', 'kab'], a: (u) =>
-    u ? STATUS[u.status] || STATUS.new : 'Everyone does the same check: a photo of your PAN, driving licence, Voter ID or passport, plus a selfie, checked by a real person. We don’t accept Aadhaar. One ID can only ever make one account. After the check we delete both images.' },
+  { k: ['verify', 'verification', 'verified', 'id', 'aadhaar', 'pan', 'selfie', 'instagram', 'linkedin', 'badge', 'approve', 'approval', 'queue', 'kab'], a: (u) =>
+    u ? STATUS[u.status] || STATUS.new : 'To join, link your Instagram or LinkedIn and a real person checks it. Only our reviewers see the link. For an ID-verified badge you can also add PAN, driving licence, Voter ID or passport plus a selfie; we delete both images after the check. We don’t accept Aadhaar.' },
   { k: ['kundli', 'guna', 'gun milan', 'nakshatra', 'rashi', 'manglik', 'astrology'], a: () =>
     'Kundli is only in Forever, and it’s optional. Add your birth time (we calculate your Moon sign and Nakshatra) or pick your Rashi and Nakshatra yourself. When both people have it on, picks show a guna score out of 36, and you can filter by a minimum score.' },
   { k: ['horoscope', 'zodiac', 'sun sign', 'star sign'], a: () =>
